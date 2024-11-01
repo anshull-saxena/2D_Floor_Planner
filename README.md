@@ -85,3 +85,4 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 ---
 
 Feel free to reach out with any questions or feedback regarding the **2D Floor Planner** project!
+f20221041@hyderabad.bits-pilani.ac.in
