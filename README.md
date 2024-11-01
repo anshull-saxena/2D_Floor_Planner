@@ -26,7 +26,7 @@ Welcome to the 2D Floor Planner project! This application allows users to design
 To run this application, you need:
 
 - Java Development Kit (JDK) 8 or higher
--VSCode
+- VSCode
 
 ## Installation
 
