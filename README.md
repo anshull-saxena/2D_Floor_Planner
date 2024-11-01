@@ -37,7 +37,7 @@ To run this application, you need:
    ```
 
 2. **Open the project in your IDE.**
-   - If you are using Apache NetBeans, open the project directory from the IDE.
+   - If you are using VsCode, open the project directory from the IDE.
 
 3. **Build the project.**
    - In your IDE, build the project to resolve dependencies and compile the code.
@@ -49,15 +49,6 @@ To run this application, you need:
 
 2. **Run the application.**
    - In your IDE, locate the `Template.java` file and run it.
-
-3. **Create your floor plan.**
-   - Use the interface to draw walls, add rooms, and place furniture.
-
-4. **Save your design.**
-   - Use the save feature to keep your floor plan for future edits.
-
-5. **Load an existing design.**
-   - Use the load feature to retrieve your previously saved floor plans.
 
 ## Contributing
 
