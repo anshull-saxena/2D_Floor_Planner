@@ -10,7 +10,7 @@ public class Panel extends javax.swing.JPanel {
         initComponents();
     }
 
-    @SuppressWarnings("unchecked")
+    @SuppressWarnings("unchecked ")
     private void initComponents() {
         jScrollPane1 = new javax.swing.JScrollPane();
         jList1 = new javax.swing.JList<>();
