@@ -1,0 +1,90 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<Form version="1.3">
+  <Layout>
+    <DimensionLayout dim="0">
+      <Group type="103" groupAlignment="0">
+        <Group type="102" alignment="0">
+          <EmptySpace pref="30"/>
+          <Component id="jScrollPane1"/>
+          <EmptySpace pref="46"/>
+          <Component id="jPanel1"/>
+          <EmptySpace/>
+          <Component id="jPanel2"/>
+          <EmptySpace pref="17"/>
+        </Group>
+        <Group type="102" alignment="1">
+          <EmptySpace/>
+          <Component id="jButton1"/>
+          <EmptySpace pref="282"/>
+        </Group>
+      </Group>
+    </DimensionLayout>
+    <DimensionLayout dim="1">
+      <Group type="103" groupAlignment="0">
+        <Group type="102" alignment="0">
+          <EmptySpace pref="37"/>
+          <Group type="103" groupAlignment="0">
+            <Component id="jScrollPane1"/>
+            <Component id="jPanel1"/>
+            <Component id="jPanel2" alignment="0"/>
+          </Group>
+          <EmptySpace pref="37"/>
+          <Component id="jButton1"/>
+          <EmptySpace pref="92"/>
+        </Group>
+      </Group>
+    </DimensionLayout>
+  </Layout>
+  <SubComponents>
+    <Container class="javax.swing.JScrollPane" name="jScrollPane1">
+      <SubComponents>
+        <Component class="javax.swing.JList" name="jList1">
+          <Properties>
+            <Property name="model" type="javax.swing.ListModel">
+              <StringArray count="5">
+                <StringItem index="0" value="Item 1"/>
+                <StringItem index="1" value="Item 2"/>
+                <StringItem index="2" value="Item 3"/>
+                <StringItem index="3" value="Item 4"/>
+                <StringItem index="4" value="Item 5"/>
+              </StringArray>
+            </Property>
+          </Properties>
+        </Component>
+      </SubComponents>
+    </Container>
+    <Container class="javax.swing.JPanel" name="jPanel1">
+      <Layout>
+        <DimensionLayout dim="0">
+          <Group type="103" groupAlignment="0">
+            <EmptySpace pref="427"/>
+          </Group>
+        </DimensionLayout>
+        <DimensionLayout dim="1">
+          <Group type="103" groupAlignment="0">
+            <EmptySpace pref="243"/>
+          </Group>
+        </DimensionLayout>
+      </Layout>
+    </Container>
+    <Container class="javax.swing.JPanel" name="jPanel2">
+      <Layout>
+        <DimensionLayout dim="0">
+          <Group type="103" groupAlignment="0">
+            <EmptySpace pref="100"/>
+          </Group>
+        </DimensionLayout>
+        <DimensionLayout dim="1">
+          <Group type="103" groupAlignment="0">
+            <EmptySpace pref="187"/>
+          </Group>
+        </DimensionLayout>
+      </Layout>
+    </Container>
+    <Component class="javax.swing.JButton" name="jButton1">
+      <Properties>
+        <Property name="text" type="java.lang.String" value="jButton1"/>
+      </Properties>
+    </Component>
+  </SubComponents>
+</Form>
