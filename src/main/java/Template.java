@@ -3,7 +3,7 @@ import java.awt.Toolkit;
 import javax.swing.JFrame;
 
 public class Template {
-    public static void main(String[] args) {
+   /* public static void main(String[] args) {
         // Create a new JFrame
         JFrame frame = new JFrame("2D Floor Planner");
 
@@ -19,5 +19,5 @@ public class Template {
         frame.setExtendedState(JFrame.MAXIMIZED_BOTH);
 
         frame.setVisible(true);
-    }
+    }*/
 }
