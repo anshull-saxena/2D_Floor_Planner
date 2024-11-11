@@ -1,12 +1,12 @@
 import javax.swing.JPanel;
 import java.util.ArrayList;
 
-ArrayList<Room> arrRoom = new ArrayList<Room>();
-ArrayList<Door> doors = new ArrayList<Door>();
 
-public class Room extends JPanel {
+
+public class Room extends JPanel{
     // ArrayList<Room> arr = new ArrayList<Room>();
-
+    ArrayList<Room> arrRoom = new ArrayList<Room>();
+    ArrayList<Door> doors = new ArrayList<Door>();
     // l, w, roomtype, position
 
     public int length, width;
