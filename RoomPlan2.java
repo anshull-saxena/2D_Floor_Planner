@@ -1,5 +1,4 @@
-
-    import java.awt.*;
+import java.awt.*;
 import java.awt.event.*;
 import java.util.ArrayList;
 import javax.swing.*;
@@ -25,14 +24,52 @@ public class RoomPlan2 extends JPanel {
     private JButton setDimensionsButton;
     private JButton setPositionButton;
     private JButton addRoomButton;
+    private JButton addRelativeButton; // Add Relative button
+
 
     public RoomPlan2() {
         setLayout(new BorderLayout());
 
         JPanel leftPanel = new JPanel();
-        leftPanel.setPreferredSize(new Dimension(LEFT_PANEL_WIDTH, getHeight()));
+        leftPanel.setPreferredSize(new Dimension(LEFT_PANEL_WIDTH, getHeight())); // LEFT_PANEL_WIDTH = 200
         leftPanel.setBackground(Color.LIGHT_GRAY);
-        add(leftPanel, BorderLayout.WEST);
+        leftPanel.setLayout(new GridBagLayout()); // Center elements in the panel
+
+// Create buttons with fixed dimensions
+Dimension buttonSize = new Dimension(180, 40); // Width slightly smaller than the panel width
+JButton downloadButton = new JButton("Download");
+downloadButton.setPreferredSize(buttonSize);
+
+JButton openFileButton = new JButton("Open File");
+openFileButton.setPreferredSize(buttonSize);
+
+JButton resetButton = new JButton("Reset");
+resetButton.setPreferredSize(buttonSize);
+
+//functionality to reset 
+resetButton.addActionListener(e -> {
+    rooms.clear();
+    repaint();
+    
+});
+
+GridBagConstraints gbc = new GridBagConstraints();
+gbc.insets = new Insets(10, 0, 10, 0); // Spacing between buttons
+gbc.gridx = 0; // Single column
+gbc.anchor = GridBagConstraints.CENTER; // Center alignment
+
+gbc.gridy = 0;
+leftPanel.add(downloadButton, gbc);
+
+gbc.gridy = 1;
+leftPanel.add(openFileButton, gbc);
+
+gbc.gridy = 2;
+leftPanel.add(resetButton, gbc);
+
+
+add(leftPanel, BorderLayout.WEST);
+
 
         roomTypeButton = new JButton("Room Type");
         roomTypeButton.addActionListener(e -> {
@@ -51,8 +88,9 @@ public class RoomPlan2 extends JPanel {
             }
         });
 
-        setDimensionsButton = new JButton("Set Dimensions");
-        setDimensionsButton.addActionListener(e -> {
+        JButton setDimensionsButton = new JButton();
+        setDimensionsButton.setText("Set Dimension");
+       setDimensionsButton.addActionListener(e -> {
             JTextField widthField = new JTextField(5);
             JTextField heightField = new JTextField(5);
 
@@ -75,8 +113,9 @@ public class RoomPlan2 extends JPanel {
             }
         });
 
-        setPositionButton = new JButton("Set Position");
-        setPositionButton.addActionListener(e -> {
+        JButton setPositionButton = new JButton();
+        setPositionButton.setText("Set Position");
+       setPositionButton.addActionListener(e -> {
             JTextField xField = new JTextField(5);
             JTextField yField = new JTextField(5);
 
@@ -99,8 +138,9 @@ public class RoomPlan2 extends JPanel {
             }
         });
 
-        addRoomButton = new JButton("Add Room");
-        addRoomButton.addActionListener(e -> {
+        JButton addRoomButton = new JButton();
+        addRoomButton.setText("Add Room");
+       addRoomButton.addActionListener(e -> {
             Room newRoom = new Room(roomX, roomY, roomWidth, roomHeight, selectedRoomColor, selectedRoomType);
 
             // Check for overlaps during room creation
@@ -206,6 +246,99 @@ public class RoomPlan2 extends JPanel {
         buttonPanel.add(modifyButton); // Add Modify button
 
         add(buttonPanel, BorderLayout.SOUTH);
+
+        addRelativeButton = new JButton("Add Relative");
+        addRelativeButton.setVisible(false); // Initially invisible
+        addRelativeButton.addActionListener(e -> {
+            if (selectedRoom != null) {
+                String[] directions = {"North", "East", "South", "West"};
+                String selectedDirection = (String) JOptionPane.showInputDialog(this, 
+                    "Select relative position to add a new room:", 
+                    "Add Relative Room", 
+                    JOptionPane.QUESTION_MESSAGE, 
+                    null, 
+                    directions, 
+                    directions[0]);
+    
+                if (selectedDirection != null) {
+                    int newX = selectedRoom.getX();
+                    int newY = selectedRoom.getY();
+    
+                    // Determine the new position based on the selected direction
+                    switch (selectedDirection) {
+                        case "North" -> newY -= roomHeight ;
+                        case "East" -> newX += selectedRoom.getWidth() ;
+                        case "South" -> newY += selectedRoom.getHeight() ;
+                        case "West" -> newX -= roomWidth ;
+                    }
+    
+                    Room newRoom = new Room(newX, newY, roomWidth, roomHeight, selectedRoomColor, selectedRoomType);
+    
+                    // Check for overlaps
+                    boolean overlaps = false;
+                    for (Room room : rooms) {
+                        if (newRoom.overlapsWith(room)) {
+                            overlaps = true;
+                            break;
+                        }
+                    }
+    
+                    if (overlaps) {
+                        JOptionPane.showMessageDialog(this, "Cannot add room. It overlaps with an existing room.", 
+                                                      "Overlap Error", JOptionPane.ERROR_MESSAGE);
+                    } else {
+                        rooms.add(newRoom);
+                        repaint();
+                    }
+                }
+            } else {
+                JOptionPane.showMessageDialog(this, "No room is selected!", "Error", JOptionPane.ERROR_MESSAGE);
+            }
+        });
+    
+        // Add buttons to the panel
+        buttonPanel.add(propertiesButton);
+        buttonPanel.add(modifyButton);
+        buttonPanel.add(addRelativeButton); // Add the new button
+        add(buttonPanel, BorderLayout.SOUTH);
+    
+        // Existing mousePressed logic...
+        addMouseListener(new MouseAdapter() {
+            @Override
+            public void mousePressed(MouseEvent e) {
+                Room clickedRoom = null;
+                for (Room room : rooms) {
+                    if (room.contains(e.getX(), e.getY())) {
+                        clickedRoom = room;
+                        mouseOffset = new Point(e.getX() - room.getX(), e.getY() - room.getY());
+                        originalX = room.getX();
+                        originalY = room.getY();
+                        break;
+                    }
+                }
+    
+                if (clickedRoom != null) {
+                    selectedRoom = clickedRoom;
+                    propertiesButton.setVisible(true);
+                    modifyButton.setVisible(true);
+                    addRelativeButton.setVisible(true); // Show Add Relative button
+                    roomTypeButton.setVisible(false);
+                    setDimensionsButton.setVisible(false);
+                    setPositionButton.setVisible(false);
+                    addRoomButton.setVisible(false);
+                } else {
+                    selectedRoom = null;
+                    propertiesButton.setVisible(false);
+                    modifyButton.setVisible(false);
+                    addRelativeButton.setVisible(false); // Hide Add Relative button
+                    roomTypeButton.setVisible(true);
+                    setDimensionsButton.setVisible(true);
+                    setPositionButton.setVisible(true);
+                    addRoomButton.setVisible(true);
+                }
+                repaint();
+            }
+        });
 
         addMouseListener(new MouseAdapter() {
             @Override
@@ -339,6 +472,12 @@ public class RoomPlan2 extends JPanel {
             g.fillRect(x, y, width, height);
             g.setColor(Color.BLACK);
             g.drawRect(x, y, width, height);
+
+            Graphics2D g2d = (Graphics2D) g;
+            g2d.setColor(Color.BLACK); // Border color
+            g2d.setStroke(new BasicStroke(3)); // Border thickness
+            g2d.drawRect(x, y,width, height);
+
         }
 
         public boolean overlapsWith(Room other) {
