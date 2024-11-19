@@ -3,12 +3,12 @@ import java.awt.event.*;
 import java.util.ArrayList;
 import javax.swing.*;
 
-public class RoomPlan2 extends JPanel {
+public class random extends JPanel {
     private ArrayList<Room> rooms = new ArrayList<>();
-    private int roomWidth = 100;
-    private int roomHeight = 100;
-    private int roomX = 50;
-    private int roomY = 50;
+    private Integer roomWidth = null;
+    private Integer roomHeight = null;
+    private Integer roomX = null;
+    private Integer roomY = null;
     private Room selectedRoom = null;
     private Point mouseOffset = null;
     private int originalX, originalY;
@@ -21,13 +21,14 @@ public class RoomPlan2 extends JPanel {
     private JButton propertiesButton;
     private JButton modifyButton;
     private JButton roomTypeButton;
+    private JButton addFurnButton;
     private JButton setDimensionsButton;
     private JButton setPositionButton;
     private JButton addRoomButton;
     private JButton addRelativeButton; // Add Relative button
 
 
-    public RoomPlan2() {
+    public random() {
         setLayout(new BorderLayout());
 
         JPanel leftPanel = new JPanel();
@@ -140,26 +141,47 @@ add(leftPanel, BorderLayout.WEST);
 
         JButton addRoomButton = new JButton();
         addRoomButton.setText("Add Room");
-       addRoomButton.addActionListener(e -> {
-            Room newRoom = new Room(roomX, roomY, roomWidth, roomHeight, selectedRoomColor, selectedRoomType);
-
-            // Check for overlaps during room creation
-            boolean overlaps = false;
-            for (Room room : rooms) {
-                if (newRoom.overlapsWith(room)) {
-                    overlaps = true;
-                    break;
+        addRoomButton.addActionListener(e -> {
+            // Check if room dimensions are incomplete
+            if (roomWidth == null || roomHeight == null) {
+                JOptionPane.showMessageDialog(
+                    this,
+                    "Please provide room dimensions (width and height) before adding the room.",
+                    "Incomplete Data",
+                    JOptionPane.WARNING_MESSAGE
+                );
+            } else {
+                // Create a new room object
+                Room newRoom = new Room(roomX, roomY, roomWidth, roomHeight, selectedRoomColor, selectedRoomType);
+                roomWidth = null;
+                roomHeight = null;
+                roomX = null;
+                roomY = null;
+                
+                // Check for overlaps
+                boolean overlaps = false;
+                for (Room room : rooms) {
+                    if (newRoom.overlapsWith(room)) {
+                        overlaps = true;
+                        break;
+                    }
+                }
+        
+                if (overlaps) {
+                    JOptionPane.showMessageDialog(
+                        this,
+                        "Cannot add room. It overlaps with an existing room.",
+                        "Overlap Error",
+                        JOptionPane.ERROR_MESSAGE
+                    );
+                } else {
+                    // Add the new room to the list and repaint the canvas
+                    rooms.add(newRoom);
+                    repaint();
                 }
             }
-
-            if (overlaps) {
-                JOptionPane.showMessageDialog(null, "Cannot add room. It overlaps with an existing room.", 
-                                              "Overlap Error", JOptionPane.ERROR_MESSAGE);
-            } else {
-                rooms.add(newRoom);
-                repaint();
-            }
         });
+        
 
         propertiesButton = new JButton("Properties");
         propertiesButton.setVisible(false); // Initially invisible
@@ -233,6 +255,66 @@ add(leftPanel, BorderLayout.WEST);
             }
         });
         
+        addFurnButton  = new JButton("Add Furniture");
+        addFurnButton.setVisible(false);
+        addFurnButton.addActionListener(e -> {
+            if (selectedRoom != null) {
+                String[] options1 = {"bed","chair", "table", "sofa", "dining set"};
+                int choice = JOptionPane.showOptionDialog(this, "Choose an option", "Add Furniture", 
+                        JOptionPane.DEFAULT_OPTION, JOptionPane.INFORMATION_MESSAGE, null, options1, options1[0]);
+        
+                if (choice == 0) {
+                    // Rotate the room by 90 degrees clockwise
+                    int newWidth = selectedRoom.getHeight();
+                    int newHeight = selectedRoom.getWidth();
+        
+                    // Adjust position to maintain the top-left corner position after rotation
+                    int newX = selectedRoom.getX() + (selectedRoom.getWidth() - newWidth) / 2;
+                    int newY = selectedRoom.getY() + (selectedRoom.getHeight() - newHeight) / 2;
+        
+                    // Temporarily store old dimensions and position
+                    int oldWidth = selectedRoom.getWidth();
+                    int oldHeight = selectedRoom.getHeight();
+                    int oldX = selectedRoom.getX();
+                    int oldY = selectedRoom.getY();
+        
+                    // Update room's dimensions and position
+                    selectedRoom.setWidth(newWidth);
+                    selectedRoom.setHeight(newHeight);
+                    selectedRoom.setX(newX);
+                    selectedRoom.setY(newY);
+        
+                    // Check for overlaps after rotation
+                    boolean overlaps = false;
+                    for (Room room : rooms) {
+                        if (room != selectedRoom && selectedRoom.overlapsWith(room)) {
+                            overlaps = true;
+                            break;
+                        }
+                    }
+        
+                    if (overlaps) {
+                        JOptionPane.showMessageDialog(null, "Room overlaps with another. Rotation reverted.", 
+                                                      "Overlap Error", JOptionPane.ERROR_MESSAGE);
+                        // Revert to old dimensions and position if overlaps
+                        selectedRoom.setWidth(oldWidth);
+                        selectedRoom.setHeight(oldHeight);
+                        selectedRoom.setX(oldX);
+                        selectedRoom.setY(oldY);
+                    }
+        
+                    repaint();
+                } else if (choice == 1) {
+                    // Remove the room
+                    rooms.remove(selectedRoom);
+                    selectedRoom = null;
+                    repaint();
+                }
+                    
+                    repaint();
+            }
+        });
+
 
         JPanel buttonPanel = new JPanel();
         buttonPanel.setPreferredSize(new Dimension(getWidth(), BOTTOM_PANEL_HEIGHT));
@@ -243,7 +325,8 @@ add(leftPanel, BorderLayout.WEST);
         buttonPanel.add(setPositionButton);
         buttonPanel.add(addRoomButton);
         buttonPanel.add(propertiesButton);
-        buttonPanel.add(modifyButton); // Add Modify button
+        buttonPanel.add(modifyButton); 
+        buttonPanel.add(addFurnButton);// Add Modify button
 
         add(buttonPanel, BorderLayout.SOUTH);
 
@@ -299,8 +382,9 @@ add(leftPanel, BorderLayout.WEST);
         // Add buttons to the panel
         buttonPanel.add(propertiesButton);
         buttonPanel.add(modifyButton);
-        buttonPanel.add(addRelativeButton); // Add the new button
+        buttonPanel.add(addRelativeButton); 
         add(buttonPanel, BorderLayout.SOUTH);
+
     
         // Existing mousePressed logic...
         addMouseListener(new MouseAdapter() {
@@ -326,6 +410,8 @@ add(leftPanel, BorderLayout.WEST);
                     setDimensionsButton.setVisible(false);
                     setPositionButton.setVisible(false);
                     addRoomButton.setVisible(false);
+                    addFurnButton.setVisible(true);
+
                 } else {
                     selectedRoom = null;
                     propertiesButton.setVisible(false);
@@ -335,6 +421,7 @@ add(leftPanel, BorderLayout.WEST);
                     setDimensionsButton.setVisible(true);
                     setPositionButton.setVisible(true);
                     addRoomButton.setVisible(true);
+                    addFurnButton.setVisible(false);
                 }
                 repaint();
             }
@@ -362,6 +449,7 @@ add(leftPanel, BorderLayout.WEST);
                     setDimensionsButton.setVisible(false);
                     setPositionButton.setVisible(false);
                     addRoomButton.setVisible(false);
+                    addFurnButton.setVisible(true);
                 } else {
                     selectedRoom = null;
                     propertiesButton.setVisible(false);
@@ -370,6 +458,7 @@ add(leftPanel, BorderLayout.WEST);
                     setDimensionsButton.setVisible(true);
                     setPositionButton.setVisible(true);
                     addRoomButton.setVisible(true);
+                    addFurnButton.setVisible(false);
                 }
                 repaint();
             }
@@ -529,7 +618,7 @@ add(leftPanel, BorderLayout.WEST);
         frame.setTitle("Room Planner");
         frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         frame.setExtendedState(JFrame.MAXIMIZED_BOTH); // Open in fullscreen mode
-        frame.add(new RoomPlan2());
+        frame.add(new random());
         frame.setVisible(true);
     }
 
