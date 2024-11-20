@@ -1,9 +1,10 @@
 import java.awt.*;
 import java.awt.event.*;
+import java.io.*;
 import java.util.ArrayList;
 import javax.swing.*;
 
-public class random extends JPanel {
+public class RoomPlan2 extends JPanel {
     private ArrayList<Room> rooms = new ArrayList<>();
     private Integer roomWidth = null;
     private Integer roomHeight = null;
@@ -28,7 +29,7 @@ public class random extends JPanel {
     private JButton addRelativeButton; // Add Relative button
 
 
-    public random() {
+    public RoomPlan2() {
         setLayout(new BorderLayout());
 
         JPanel leftPanel = new JPanel();
@@ -40,9 +41,121 @@ public class random extends JPanel {
 Dimension buttonSize = new Dimension(180, 40); // Width slightly smaller than the panel width
 JButton downloadButton = new JButton("Download");
 downloadButton.setPreferredSize(buttonSize);
+downloadButton.addActionListener(e -> {
+    if (rooms.isEmpty()) {
+        JOptionPane.showMessageDialog(this, "No rooms to save!", "Error", JOptionPane.ERROR_MESSAGE);
+        return;
+    }
+    
+    JFileChooser fileChooser = new JFileChooser();
+    fileChooser.setFileSelectionMode(JFileChooser.FILES_ONLY);
+    fileChooser.setSelectedFile(new java.io.File("floorplan.2ds"));
+    
+    if (fileChooser.showSaveDialog(this) == JFileChooser.APPROVE_OPTION) {
+        java.io.File file = fileChooser.getSelectedFile();
+        String filePath = file.getPath();
+        if (!filePath.endsWith(".2ds")) {
+            filePath += ".2ds";
+        }
+        
+        try (FileWriter writer = new FileWriter(filePath)) {
+            // Write header
+            writer.write("2DS_FLOOR_PLAN\n");
+            writer.write("VERSION 1.0\n");
+            writer.write("ROOM_COUNT " + rooms.size() + "\n\n");
+            
+            // Write each room's data
+            for (Room room : rooms) {
+                writer.write("ROOM\n");
+                writer.write("TYPE " + room.getRoomType() + "\n");
+                writer.write("POSITION " + (room.getX() - LEFT_PANEL_WIDTH) + " " + room.getY() + "\n");
+                writer.write("DIMENSIONS " + room.getWidth() + " " + room.getHeight() + "\n");
+                writer.write("END_ROOM\n\n");
+            }
+            
+            writer.write("END_FLOOR_PLAN");
+            JOptionPane.showMessageDialog(this, "Floor plan saved successfully!", "Success", JOptionPane.INFORMATION_MESSAGE);
+        } catch (IOException ex) {
+            JOptionPane.showMessageDialog(this, "Error saving floor plan: " + ex.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
+        }
+    }
+});
 
 JButton openFileButton = new JButton("Open File");
 openFileButton.setPreferredSize(buttonSize);
+openFileButton.addActionListener(e -> {
+    JFileChooser fileChooser = new JFileChooser();
+    fileChooser.setFileFilter(new javax.swing.filechooser.FileFilter() {
+        public boolean accept(File f) {
+            return f.isDirectory() || f.getName().toLowerCase().endsWith(".2ds");
+        }
+        public String getDescription() {
+            return "2D Floor Plan Files (*.2ds)";
+        }
+    });
+    
+    if (fileChooser.showOpenDialog(this) == JFileChooser.APPROVE_OPTION) {
+        File file = fileChooser.getSelectedFile();
+        try (BufferedReader reader = new BufferedReader(new FileReader(file))) {
+            // Clear existing rooms
+            rooms.clear();
+            
+            String line;
+            // Read header
+            line = reader.readLine();
+            if (!"2DS_FLOOR_PLAN".equals(line)) {
+                throw new IOException("Invalid file format");
+            }
+            
+            reader.readLine(); // Skip version
+            reader.readLine(); // Skip room count
+            reader.readLine(); // Skip empty line
+            
+            // Read rooms
+            while ((line = reader.readLine()) != null) {
+                if ("ROOM".equals(line)) {
+                    // Read room type
+                    String type = reader.readLine().substring(5); // Skip "TYPE "
+                    
+                    // Read position
+                    String[] position = reader.readLine().substring(9).split(" "); // Skip "POSITION "
+                    int x = Integer.parseInt(position[0]) + LEFT_PANEL_WIDTH;
+                    int y = Integer.parseInt(position[1]);
+                    
+                    // Read dimensions
+                    String[] dimensions = reader.readLine().substring(11).split(" "); // Skip "DIMENSIONS "
+                    int width = Integer.parseInt(dimensions[0]);
+                    int height = Integer.parseInt(dimensions[1]);
+                    
+                    // Set color based on room type
+                    Color color;
+                    switch (type) {
+                        case "Bedroom" -> color = Color.GREEN;
+                        case "Kitchen" -> color = Color.RED;
+                        case "Living Room" -> color = Color.ORANGE;
+                        case "Bathroom" -> color = Color.BLUE;
+                        case "Drawing Room" -> color = Color.YELLOW;
+                        default -> color = Color.GRAY;
+                    }
+                    
+                    // Create and add room
+                    Room room = new Room(x, y, width, height, color, type);
+                    rooms.add(room);
+                    
+                    reader.readLine(); // Skip "END_ROOM"
+                    reader.readLine(); // Skip empty line
+                }
+            }
+            
+            repaint();
+            JOptionPane.showMessageDialog(this, "Floor plan loaded successfully!", "Success", JOptionPane.INFORMATION_MESSAGE);
+        } catch (IOException ex) {
+            JOptionPane.showMessageDialog(this, "Error loading floor plan: " + ex.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
+            rooms.clear(); // Clear rooms if there was an error
+            repaint();
+        }
+    }
+});
 
 JButton resetButton = new JButton("Reset");
 resetButton.setPreferredSize(buttonSize);
@@ -334,44 +447,92 @@ add(leftPanel, BorderLayout.WEST);
         addRelativeButton.setVisible(false); // Initially invisible
         addRelativeButton.addActionListener(e -> {
             if (selectedRoom != null) {
-                String[] directions = {"North", "East", "South", "West"};
-                String selectedDirection = (String) JOptionPane.showInputDialog(this, 
-                    "Select relative position to add a new room:", 
-                    "Add Relative Room", 
-                    JOptionPane.QUESTION_MESSAGE, 
-                    null, 
-                    directions, 
-                    directions[0]);
-    
-                if (selectedDirection != null) {
-                    int newX = selectedRoom.getX();
-                    int newY = selectedRoom.getY();
-    
-                    // Determine the new position based on the selected direction
-                    switch (selectedDirection) {
-                        case "North" -> newY -= roomHeight ;
-                        case "East" -> newX += selectedRoom.getWidth() ;
-                        case "South" -> newY += selectedRoom.getHeight() ;
-                        case "West" -> newX -= roomWidth ;
-                    }
-    
-                    Room newRoom = new Room(newX, newY, roomWidth, roomHeight, selectedRoomColor, selectedRoomType);
-    
-                    // Check for overlaps
-                    boolean overlaps = false;
-                    for (Room room : rooms) {
-                        if (newRoom.overlapsWith(room)) {
-                            overlaps = true;
-                            break;
+                // First get dimensions for the new room
+                JTextField widthField = new JTextField(5);
+                JTextField heightField = new JTextField(5);
+                
+                JPanel dimensionPanel = new JPanel();
+                dimensionPanel.add(new JLabel("Width:"));
+                dimensionPanel.add(widthField);
+                dimensionPanel.add(Box.createHorizontalStrut(15));
+                dimensionPanel.add(new JLabel("Height:"));
+                dimensionPanel.add(heightField);
+                
+                int dimensionResult = JOptionPane.showConfirmDialog(null, dimensionPanel, 
+                    "Enter Room Dimensions", JOptionPane.OK_CANCEL_OPTION);
+                
+                if (dimensionResult == JOptionPane.OK_OPTION) {
+                    try {
+                        int newWidth = Integer.parseInt(widthField.getText());
+                        int newHeight = Integer.parseInt(heightField.getText());
+                        
+                        // Then get the direction
+                        String[] directions = {"North", "East", "South", "West"};
+                        String selectedDirection = (String) JOptionPane.showInputDialog(this, 
+                            "Select relative position to add a new room:", 
+                            "Add Relative Room", 
+                            JOptionPane.QUESTION_MESSAGE, 
+                            null, 
+                            directions, 
+                            directions[0]);
+            
+                        if (selectedDirection != null) {
+                            int newX = selectedRoom.getX();
+                            int newY = selectedRoom.getY();
+            
+                            // Determine the new position based on the selected direction
+                            switch (selectedDirection) {
+                                case "North" -> newY = selectedRoom.getY() - newHeight;
+                                case "East" -> newX = selectedRoom.getX() + selectedRoom.getWidth();
+                                case "South" -> newY = selectedRoom.getY() + selectedRoom.getHeight();
+                                case "West" -> newX = selectedRoom.getX() - newWidth;
+                            }
+                            
+                            // Get room type
+                            String[] roomTypes = {"Bedroom", "Kitchen", "Living Room", "Bathroom", "Drawing Room"};
+                            String newRoomType = (String) JOptionPane.showInputDialog(null, 
+                                "Choose Room Type:", "Room Type", 
+                                JOptionPane.QUESTION_MESSAGE, null, roomTypes, roomTypes[0]);
+                                
+                            if (newRoomType != null) {
+                                // Set color based on room type
+                                Color newRoomColor;
+                                switch (newRoomType) {
+                                    case "Bedroom" -> newRoomColor = Color.GREEN;
+                                    case "Kitchen" -> newRoomColor = Color.RED;
+                                    case "Living Room" -> newRoomColor = Color.ORANGE;
+                                    case "Bathroom" -> newRoomColor = Color.BLUE;
+                                    case "Drawing Room" -> newRoomColor = Color.YELLOW;
+                                    default -> newRoomColor = Color.GRAY;
+                                }
+                                
+                                Room newRoom = new Room(newX, newY, newWidth, newHeight, newRoomColor, newRoomType);
+                
+                                // Check for overlaps
+                                boolean overlaps = false;
+                                for (Room room : rooms) {
+                                    if (newRoom.overlapsWith(room)) {
+                                        overlaps = true;
+                                        break;
+                                    }
+                                }
+                
+                                if (overlaps) {
+                                    JOptionPane.showMessageDialog(this, 
+                                        "Cannot add room. It overlaps with an existing room.", 
+                                        "Overlap Error", 
+                                        JOptionPane.ERROR_MESSAGE);
+                                } else {
+                                    rooms.add(newRoom);
+                                    repaint();
+                                }
+                            }
                         }
-                    }
-    
-                    if (overlaps) {
-                        JOptionPane.showMessageDialog(this, "Cannot add room. It overlaps with an existing room.", 
-                                                      "Overlap Error", JOptionPane.ERROR_MESSAGE);
-                    } else {
-                        rooms.add(newRoom);
-                        repaint();
+                    } catch (NumberFormatException ex) {
+                        JOptionPane.showMessageDialog(null, 
+                            "Please enter valid numbers for dimensions.", 
+                            "Invalid Input", 
+                            JOptionPane.ERROR_MESSAGE);
                     }
                 }
             } else {
@@ -618,7 +779,7 @@ add(leftPanel, BorderLayout.WEST);
         frame.setTitle("Room Planner");
         frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         frame.setExtendedState(JFrame.MAXIMIZED_BOTH); // Open in fullscreen mode
-        frame.add(new random());
+        frame.add(new RoomPlan2());
         frame.setVisible(true);
     }
 
