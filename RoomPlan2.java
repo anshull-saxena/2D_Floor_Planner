@@ -1,9 +1,10 @@
+import javax.swing.*;
 import java.awt.*;
 import java.awt.event.*;
 import java.io.*;
 import java.util.ArrayList;
-import javax.swing.*;
-
+import com.formdev.flatlaf.FlatLightLaf;
+import com.formdev.flatlaf.themes.FlatMacLightLaf;
 
 public class RoomPlan2 extends JPanel {
     private ArrayList<Room> rooms = new ArrayList<>();
@@ -728,7 +729,46 @@ add(leftPanel, BorderLayout.WEST);
             g2d.setColor(Color.BLACK); // Border color
             g2d.setStroke(new BasicStroke(3)); // Border thickness
             g2d.drawRect(x, y,width, height);
+            for (Room other : rooms) {
+                if (other != this && isAdjacent(other)) {
+                    drawDoor(g2d, other);
+                }
+            
+            }
 
+        }
+
+        public boolean isAdjacent(Room other) {
+            // Check if the rooms are adjacent either vertically or horizontally
+            boolean isAdjacentVertically = (x < other.x + other.width && x + width > other.x) && 
+                                           (y + height == other.y || y == other.y + other.height);
+            boolean isAdjacentHorizontally = (y < other.y + other.height && y + height > other.y) && 
+                                             (x + width == other.x || x == other.x + other.width);
+            return isAdjacentVertically || isAdjacentHorizontally;
+        }
+
+
+        public void drawDoor(Graphics2D g2d, Room other) {
+            // Check if the rooms are adjacent
+            if (isAdjacent(other)) {
+                int doorWidth = Math.min(width, other.width) / 5; // Door width is 1/5th of the shorter wall
+                int doorHeight = Math.min(height, other.height) / 5; // Door height is 1/5th of the shorter wall
+    
+                // If the rooms are adjacent vertically (side by side)
+                if (y + height == other.y || y == other.y + other.height) {
+                    int doorX = Math.max(x, other.x) + (Math.min(x + width, other.x + other.width) - Math.max(x, other.x)) / 2 - doorWidth / 2;
+                    int doorY = (y + height + other.y) / 2 - doorHeight / 2;
+                    g2d.setColor(Color.white); // Door color
+                    g2d.fillRect(doorX, doorY, doorWidth, doorHeight); // Draw the door
+                }
+                // If the rooms are adjacent horizontally (on top of each other)
+                else if (x + width == other.x || x == other.x + other.width) {
+                    int doorX = (x + width + other.x) / 2 - doorWidth / 2;
+                    int doorY = Math.max(y, other.y) + (Math.min(y + height, other.y + other.height) - Math.max(y, other.y)) / 2 - doorHeight / 2;
+                    g2d.setColor(Color.white); // Door color
+                    g2d.fillRect(doorX, doorY, doorWidth, doorHeight); // Draw the door
+                }
+            }
         }
 
         public boolean overlapsWith(Room other) {
@@ -776,15 +816,17 @@ add(leftPanel, BorderLayout.WEST);
     }
     
     public static void main(String[] args) {
-        JFrame frame = new JFrame();
-        frame.setTitle("Room Planner");
-        frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-        frame.setExtendedState(JFrame.MAXIMIZED_BOTH); // Open in fullscreen mode
-        frame.add(new RoomPlan2());
-        frame.setVisible(true);
+        try {
+            // Set up FlatLaf theme
+            UIManager.setLookAndFeel(new FlatMacLightLaf());
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+
+        SwingUtilities.invokeLater(() -> {
+            Login login = new Login();
+            login.setVisible(true);
+        });
     }
 
 }
-
-
-//aded
