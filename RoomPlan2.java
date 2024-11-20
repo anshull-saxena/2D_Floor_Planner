@@ -5,6 +5,12 @@ import java.io.*;
 import java.util.ArrayList;
 import com.formdev.flatlaf.FlatLightLaf;
 import com.formdev.flatlaf.themes.FlatMacLightLaf;
+import com.google.firebase.auth.FirebaseAuth;
+import com.google.firebase.auth.FirebaseAuthException;
+import com.google.firebase.auth.UserRecord;
+import com.google.firebase.FirebaseApp;
+import com.google.firebase.FirebaseOptions;
+import com.google.auth.oauth2.GoogleCredentials;
 
 public class RoomPlan2 extends JPanel {
     private ArrayList<Room> rooms = new ArrayList<>();
