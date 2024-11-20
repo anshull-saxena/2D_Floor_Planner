@@ -13,12 +13,14 @@ import java.awt.Point;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.awt.event.MouseMotionAdapter;
+import java.awt.geom.AffineTransform;
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileReader;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.List;
 
 import javax.swing.Box;
 import javax.swing.JButton;
@@ -56,7 +58,8 @@ public class RoomPlan2 extends JPanel {
     private JButton setPositionButton;
     private JButton addRoomButton;
     private JButton addRelativeButton; // Add Relative button
-
+    private List<Furniture> furnitureList = new ArrayList<>();
+    private Furniture selectedFurniture = null;
 
     public RoomPlan2() {
         setLayout(new BorderLayout());
@@ -505,76 +508,22 @@ add(leftPanel, BorderLayout.WEST);
         addFurnButton.setVisible(false);
         addFurnButton.addActionListener(e -> {
             if (selectedRoom != null) {
-                String[] options1 = {"bed","chair", "table", "sofa", "dining set"};
-                int choice = JOptionPane.showOptionDialog(this, "Choose an option", "Add Furniture", 
-                        JOptionPane.DEFAULT_OPTION, JOptionPane.INFORMATION_MESSAGE, null, options1, options1[0]);
-        
-                if (choice == 0) {
-                    // Rotate the room by 90 degrees clockwise
-                    int newWidth = selectedRoom.getHeight();
-                    int newHeight = selectedRoom.getWidth();
-        
-                    // Adjust position to maintain the top-left corner position after rotation
-                    int newX = selectedRoom.getX() + (selectedRoom.getWidth() - newWidth) / 2;
-                    int newY = selectedRoom.getY() + (selectedRoom.getHeight() - newHeight) / 2;
-        
-                    // Temporarily store old dimensions and position
-                    int oldWidth = selectedRoom.getWidth();
-                    int oldHeight = selectedRoom.getHeight();
-                    int oldX = selectedRoom.getX();
-                    int oldY = selectedRoom.getY();
-        
-                    // Update room's dimensions and position
-                    selectedRoom.setWidth(newWidth);
-                    selectedRoom.setHeight(newHeight);
-                    selectedRoom.setX(newX);
-                    selectedRoom.setY(newY);
-        
-                    // Check for overlaps after rotation
-                    boolean overlaps = false;
-                    for (Room room : rooms) {
-                        if (room != selectedRoom && selectedRoom.overlapsWith(room)) {
-                            overlaps = true;
-                            break;
-                        }
-                    }
-        
-                    if (overlaps) {
-                        JOptionPane.showMessageDialog(null, "Room overlaps with another. Rotation reverted.", 
-                                                      "Overlap Error", JOptionPane.ERROR_MESSAGE);
-                        // Revert to old dimensions and position if overlaps
-                        selectedRoom.setWidth(oldWidth);
-                        selectedRoom.setHeight(oldHeight);
-                        selectedRoom.setX(oldX);
-                        selectedRoom.setY(oldY);
-                    }
-        
-                    repaint();
-                } else if (choice == 1) {
-                    // Remove the room
-                    rooms.remove(selectedRoom);
-                    selectedRoom = null;
+                String[] options = {"bed","chair", "table", "sofa", "dining set"};
+                int choice = JOptionPane.showOptionDialog(this, "Choose Furniture", "Add Furniture", 
+                        JOptionPane.DEFAULT_OPTION, JOptionPane.INFORMATION_MESSAGE, null, options, options[0]);
+
+                if (choice >= 0 && choice < options.length) {
+                    int furnWidth = selectedRoom.getWidth() / 5;
+                    int furnHeight = selectedRoom.getHeight() / 5;
+                    int furnX = selectedRoom.getX() + (selectedRoom.getWidth() - furnWidth) / 2;
+                    int furnY = selectedRoom.getY() + (selectedRoom.getHeight() - furnHeight) / 2;
+
+                    Furniture newFurniture = new Furniture(furnX, furnY, furnWidth, furnHeight, options[choice]);
+                    furnitureList.add(newFurniture);
                     repaint();
                 }
-                    
-                    repaint();
             }
         });
-
-
-        JPanel buttonPanel = new JPanel();
-        buttonPanel.setPreferredSize(new Dimension(getWidth(), BOTTOM_PANEL_HEIGHT));
-        buttonPanel.setLayout(new FlowLayout(FlowLayout.CENTER, 10, 10));
-
-        buttonPanel.add(roomTypeButton);
-        buttonPanel.add(setDimensionsButton);
-        buttonPanel.add(setPositionButton);
-        buttonPanel.add(addRoomButton);
-        buttonPanel.add(propertiesButton);
-        buttonPanel.add(modifyButton); 
-        buttonPanel.add(addFurnButton);// Add Modify button
-
-        add(buttonPanel, BorderLayout.SOUTH);
 
         addRelativeButton = new JButton("Add Relative");
         addRelativeButton.setVisible(false); // Initially invisible
@@ -674,48 +623,79 @@ add(leftPanel, BorderLayout.WEST);
         });
     
         // Add buttons to the panel
+        JPanel buttonPanel = new JPanel();
+        buttonPanel.setPreferredSize(new Dimension(getWidth(), BOTTOM_PANEL_HEIGHT));
+        buttonPanel.setLayout(new FlowLayout(FlowLayout.CENTER, 10, 10));
+
+        buttonPanel.add(roomTypeButton);
+        buttonPanel.add(setDimensionsButton);
+        buttonPanel.add(setPositionButton);
+        buttonPanel.add(addRoomButton);
         buttonPanel.add(propertiesButton);
-        buttonPanel.add(modifyButton);
+        buttonPanel.add(modifyButton); 
+        buttonPanel.add(addFurnButton);// Add Modify button
         buttonPanel.add(addRelativeButton); 
+
         add(buttonPanel, BorderLayout.SOUTH);
 
-    
         // Existing mousePressed logic...
         addMouseListener(new MouseAdapter() {
             @Override
             public void mousePressed(MouseEvent e) {
-                Room clickedRoom = null;
-                for (Room room : rooms) {
-                    if (room.contains(e.getX(), e.getY())) {
-                        clickedRoom = room;
-                        mouseOffset = new Point(e.getX() - room.getX(), e.getY() - room.getY());
-                        originalX = room.getX();
-                        originalY = room.getY();
+                Furniture clickedFurniture = null;
+                for (Furniture furn : furnitureList) {
+                    if (furn.contains(e.getX(), e.getY())) {
+                        clickedFurniture = furn;
+                        selectedFurniture = furn;
                         break;
                     }
                 }
-    
-                if (clickedRoom != null) {
-                    selectedRoom = clickedRoom;
-                    propertiesButton.setVisible(true);
-                    modifyButton.setVisible(true);
-                    addRelativeButton.setVisible(true); // Show Add Relative button
+
+                if (clickedFurniture != null) {
+                    propertiesButton.setVisible(false);
+                    modifyButton.setVisible(false);
+                    addRelativeButton.setVisible(false);
                     roomTypeButton.setVisible(false);
                     setDimensionsButton.setVisible(false);
                     setPositionButton.setVisible(false);
                     addRoomButton.setVisible(false);
                     addFurnButton.setVisible(true);
-
-                } else {
                     selectedRoom = null;
-                    propertiesButton.setVisible(false);
-                    modifyButton.setVisible(false);
-                    addRelativeButton.setVisible(false); // Hide Add Relative button
-                    roomTypeButton.setVisible(true);
-                    setDimensionsButton.setVisible(true);
-                    setPositionButton.setVisible(true);
-                    addRoomButton.setVisible(true);
-                    addFurnButton.setVisible(false);
+                } else {
+                    Room clickedRoom = null;
+                    for (Room room : rooms) {
+                        if (room.contains(e.getX(), e.getY())) {
+                            clickedRoom = room;
+                            mouseOffset = new Point(e.getX() - room.getX(), e.getY() - room.getY());
+                            originalX = room.getX();
+                            originalY = room.getY();
+                            break;
+                        }
+                    }
+
+                    if (clickedRoom != null) {
+                        selectedRoom = clickedRoom;
+                        selectedFurniture = null;
+                        propertiesButton.setVisible(true);
+                        modifyButton.setVisible(true);
+                        addRelativeButton.setVisible(true);
+                        roomTypeButton.setVisible(false);
+                        setDimensionsButton.setVisible(false);
+                        setPositionButton.setVisible(false);
+                        addRoomButton.setVisible(false);
+                        addFurnButton.setVisible(true);
+                    } else {
+                        selectedRoom = null;
+                        selectedFurniture = null;
+                        propertiesButton.setVisible(false);
+                        modifyButton.setVisible(false);
+                        addRelativeButton.setVisible(false);
+                        roomTypeButton.setVisible(true);
+                        setDimensionsButton.setVisible(true);
+                        setPositionButton.setVisible(true);
+                        addRoomButton.setVisible(true);
+                        addFurnButton.setVisible(false);
+                    }
                 }
                 repaint();
             }
@@ -799,9 +779,43 @@ add(leftPanel, BorderLayout.WEST);
                         newY = getHeight() - BOTTOM_PANEL_HEIGHT - selectedRoom.getHeight();
                     }
 
+                    // Calculate the change in position
+                    int deltaX = newX - selectedRoom.getX();
+                    int deltaY = newY - selectedRoom.getY();
+
+                    // Update room position
                     selectedRoom.setX(newX);
                     selectedRoom.setY(newY);
+
+                    // Move all furniture that's inside this room
+                    for (Furniture furn : furnitureList) {
+                        if (isInsideRoom(furn, selectedRoom)) {
+                            furn.setX(furn.getX() + deltaX);
+                            furn.setY(furn.getY() + deltaY);
+                        }
+                    }
                     repaint();
+                }
+                if (selectedFurniture != null) {
+                    int newX = e.getX() - selectedFurniture.getWidth() / 2;
+                    int newY = e.getY() - selectedFurniture.getHeight() / 2;
+
+                    Room containingRoom = null;
+                    for (Room room : rooms) {
+                        if (newX >= room.getX() && 
+                            newX + selectedFurniture.getWidth() <= room.getX() + room.getWidth() &&
+                            newY >= room.getY() && 
+                            newY + selectedFurniture.getHeight() <= room.getY() + room.getHeight()) {
+                            containingRoom = room;
+                            break;
+                        }
+                    }
+
+                    if (containingRoom != null) {
+                        selectedFurniture.setX(newX);
+                        selectedFurniture.setY(newY);
+                        repaint();
+                    }
                 }
             }
         });
@@ -814,6 +828,10 @@ add(leftPanel, BorderLayout.WEST);
 
         for (Room room : rooms) {
             room.draw(g);
+        }
+
+        for (Furniture furn : furnitureList) {
+            furn.draw(g);
         }
 
         if (hoverPoint != null) {
@@ -955,6 +973,74 @@ add(leftPanel, BorderLayout.WEST);
         public String getRoomType() {
             return type;
         }
+    }
+
+    private class Furniture {
+        private int x, y, width, height;
+        private String type;
+        private int rotation;
+
+        public Furniture(int x, int y, int width, int height, String type) {
+            this.x = x;
+            this.y = y;
+            this.width = width;
+            this.height = height;
+            this.type = type;
+            this.rotation = 0;
+        }
+
+        public void draw(Graphics g) {
+            Graphics2D g2d = (Graphics2D) g;
+            g2d.setColor(Color.DARK_GRAY);
+            
+            AffineTransform oldTransform = g2d.getTransform();
+            
+            g2d.rotate(Math.toRadians(rotation), 
+                       x + width / 2.0, 
+                       y + height / 2.0);
+            
+            switch(type) {
+                case "bed" -> g2d.setColor(new Color(139, 69, 19));
+                case "chair" -> g2d.setColor(new Color(165, 42, 42));
+                case "table" -> g2d.setColor(new Color(101, 67, 33));
+                case "sofa" -> g2d.setColor(new Color(112, 128, 144));
+                case "dining set" -> g2d.setColor(new Color(70, 130, 180));
+            }
+            
+            g2d.fillRect(x, y, width, height);
+            g2d.setTransform(oldTransform);
+            g2d.setColor(Color.BLACK);
+            g2d.drawRect(x, y, width, height);
+        }
+
+        public boolean contains(int mouseX, int mouseY) {
+            return mouseX >= x && mouseX <= x + width && 
+                   mouseY >= y && mouseY <= y + height;
+        }
+
+        public void rotate() {
+            rotation = (rotation + 90) % 360;
+            int temp = width;
+            width = height;
+            height = temp;
+        }
+
+        public int getX() { return x; }
+        public int getY() { return y; }
+        public int getWidth() { return width; }
+        public int getHeight() { return height; }
+        public String getType() { return type; }
+        public int getRotation() { return rotation; }
+
+        public void setX(int x) { this.x = x; }
+        public void setY(int y) { this.y = y; }
+    }
+    
+    private boolean isInsideRoom(Furniture furniture, Room room) {
+        return furniture.getX() >= room.getX() && 
+               furniture.getX() + furniture.getWidth() <= room.getX() + room.getWidth() &&
+               furniture.getY() >= room.getY() && 
+               furniture.getY() + furniture.getHeight() <= room.getY() + room.getHeight();
     }
     
     public static void main(String[] args) {
