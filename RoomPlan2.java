@@ -4,6 +4,7 @@ import java.io.*;
 import java.util.ArrayList;
 import javax.swing.*;
 
+
 public class RoomPlan2 extends JPanel {
     private ArrayList<Room> rooms = new ArrayList<>();
     private Integer roomWidth = null;
@@ -784,3 +785,6 @@ add(leftPanel, BorderLayout.WEST);
     }
 
 }
+
+
+//aded
