@@ -19,8 +19,8 @@ import java.util.Collections;
 import java.util.List;
 
 public class GoogleAuthConfig {
-    private static final String CLIENT_ID = "1234567890-abcdefghijklmnopqrstuvwxyz.apps.googleusercontent.com";
-    private static final String CLIENT_SECRET = "abcdefghijklmnopqrstuvwxyz";
+    private static final String CLIENT_ID = "51926553506-0uh010cv5kjmkd4nktb29pej4brogj92.apps.googleusercontent.com";
+    private static final String CLIENT_SECRET = "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";
     private static final String REDIRECT_URI = "http://localhost:8888/callback";
     private static final JsonFactory JSON_FACTORY = GsonFactory.getDefaultInstance();
     private static final List<String> SCOPES = Arrays.asList(
