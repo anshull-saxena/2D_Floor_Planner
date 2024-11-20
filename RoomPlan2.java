@@ -1,16 +1,37 @@
-import javax.swing.*;
-import java.awt.*;
-import java.awt.event.*;
-import java.io.*;
+import java.awt.BasicStroke;
+import java.awt.BorderLayout;
+import java.awt.Color;
+import java.awt.Dimension;
+import java.awt.FlowLayout;
+import java.awt.Graphics;
+import java.awt.Graphics2D;
+import java.awt.GridBagConstraints;
+import java.awt.GridBagLayout;
+import java.awt.GridLayout;
+import java.awt.Insets;
+import java.awt.Point;
+import java.awt.event.MouseAdapter;
+import java.awt.event.MouseEvent;
+import java.awt.event.MouseMotionAdapter;
+import java.io.BufferedReader;
+import java.io.File;
+import java.io.FileReader;
+import java.io.FileWriter;
+import java.io.IOException;
 import java.util.ArrayList;
-import com.formdev.flatlaf.FlatLightLaf;
+
+import javax.swing.Box;
+import javax.swing.JButton;
+import javax.swing.JComboBox;
+import javax.swing.JFileChooser;
+import javax.swing.JLabel;
+import javax.swing.JOptionPane;
+import javax.swing.JPanel;
+import javax.swing.JTextField;
+import javax.swing.SwingUtilities;
+import javax.swing.UIManager;
+
 import com.formdev.flatlaf.themes.FlatMacLightLaf;
-import com.google.firebase.auth.FirebaseAuth;
-import com.google.firebase.auth.FirebaseAuthException;
-import com.google.firebase.auth.UserRecord;
-import com.google.firebase.FirebaseApp;
-import com.google.firebase.FirebaseOptions;
-import com.google.auth.oauth2.GoogleCredentials;
 
 public class RoomPlan2 extends JPanel {
     private ArrayList<Room> rooms = new ArrayList<>();
@@ -322,7 +343,7 @@ add(leftPanel, BorderLayout.WEST);
         modifyButton.setVisible(false); // Initially invisible
         modifyButton.addActionListener(e -> {
             if (selectedRoom != null) {
-                String[] options = {"Rotate", "Remove"};
+                String[] options = {"Rotate", "Remove","Edit"};
                 int choice = JOptionPane.showOptionDialog(this, "Choose an option", "Modify Room", 
                         JOptionPane.DEFAULT_OPTION, JOptionPane.INFORMATION_MESSAGE, null, options, options[0]);
         
@@ -372,6 +393,110 @@ add(leftPanel, BorderLayout.WEST);
                     rooms.remove(selectedRoom);
                     selectedRoom = null;
                     repaint();
+                } else if(choice == 2){
+                    // Edit the room
+                    JPanel editPanel = new JPanel(new GridLayout(4, 2, 5, 5));
+                    
+                    // Room Type Selection
+                    String[] roomTypes = {"Bedroom", "Kitchen", "Living Room", "Bathroom", "Drawing Room"};
+                    JComboBox<String> roomTypeCombo = new JComboBox<>(roomTypes);
+                    roomTypeCombo.setSelectedItem(selectedRoom.getRoomType());
+                    editPanel.add(new JLabel("Room Type:"));
+                    editPanel.add(roomTypeCombo);
+                    
+                    // Position Fields
+                    JTextField xField = new JTextField(String.valueOf(selectedRoom.getX() - LEFT_PANEL_WIDTH));
+                    JTextField yField = new JTextField(String.valueOf(selectedRoom.getY()));
+                    JPanel positionPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
+                    positionPanel.add(new JLabel("X:"));
+                    positionPanel.add(xField);
+                    positionPanel.add(new JLabel("Y:"));
+                    positionPanel.add(yField);
+                    editPanel.add(new JLabel("Position:"));
+                    editPanel.add(positionPanel);
+                    
+                    // Size Fields
+                    JTextField widthField = new JTextField(String.valueOf(selectedRoom.getWidth()));
+                    JTextField heightField = new JTextField(String.valueOf(selectedRoom.getHeight()));
+                    JPanel sizePanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
+                    sizePanel.add(new JLabel("W:"));
+                    sizePanel.add(widthField);
+                    sizePanel.add(new JLabel("H:"));
+                    sizePanel.add(heightField);
+                    editPanel.add(new JLabel("Size:"));
+                    editPanel.add(sizePanel);
+                    
+                    int result = JOptionPane.showConfirmDialog(this, editPanel, 
+                        "Edit Room Properties", JOptionPane.OK_CANCEL_OPTION);
+                        
+                    if (result == JOptionPane.OK_OPTION) {
+                        try {
+                            // Store original values in case we need to revert
+                            int oldX = selectedRoom.getX();
+                            int oldY = selectedRoom.getY();
+                            int oldWidth = selectedRoom.getWidth();
+                            int oldHeight = selectedRoom.getHeight();
+                            String oldType = selectedRoom.getRoomType();
+                            Color oldColor = selectedRoom.color;
+                            
+                            // Update position
+                            int newX = Integer.parseInt(xField.getText()) + LEFT_PANEL_WIDTH;
+                            int newY = Integer.parseInt(yField.getText());
+                            selectedRoom.setX(newX);
+                            selectedRoom.setY(newY);
+                            
+                            // Update size
+                            int newWidth = Integer.parseInt(widthField.getText());
+                            int newHeight = Integer.parseInt(heightField.getText());
+                            selectedRoom.setWidth(newWidth);
+                            selectedRoom.setHeight(newHeight);
+                            
+                            // Update room type and color
+                            String newType = (String) roomTypeCombo.getSelectedItem();
+                            Color newColor;
+                            switch (newType) {
+                                case "Bedroom" -> newColor = Color.GREEN;
+                                case "Kitchen" -> newColor = Color.RED;
+                                case "Living Room" -> newColor = Color.ORANGE;
+                                case "Bathroom" -> newColor = Color.BLUE;
+                                case "Drawing Room" -> newColor = Color.YELLOW;
+                                default -> newColor = Color.GRAY;
+                            }
+                            selectedRoom.type = newType;
+                            selectedRoom.color = newColor;
+                            
+                            // Check for overlaps with other rooms
+                            boolean overlaps = false;
+                            for (Room room : rooms) {
+                                if (room != selectedRoom && selectedRoom.overlapsWith(room)) {
+                                    overlaps = true;
+                                    break;
+                                }
+                            }
+                            
+                            // If there's an overlap, revert all changes
+                            if (overlaps) {
+                                selectedRoom.setX(oldX);
+                                selectedRoom.setY(oldY);
+                                selectedRoom.setWidth(oldWidth);
+                                selectedRoom.setHeight(oldHeight);
+                                selectedRoom.type = oldType;
+                                selectedRoom.color = oldColor;
+                                
+                                JOptionPane.showMessageDialog(this,
+                                    "Cannot apply changes. The room would overlap with another room.",
+                                    "Overlap Error",
+                                    JOptionPane.ERROR_MESSAGE);
+                            }
+                            
+                            repaint();
+                        } catch (NumberFormatException ex) {
+                            JOptionPane.showMessageDialog(this,
+                                "Please enter valid numbers for position and size.",
+                                "Invalid Input",
+                                JOptionPane.ERROR_MESSAGE);
+                        }
+                    }
                 }
             }
         });
@@ -733,7 +858,7 @@ add(leftPanel, BorderLayout.WEST);
 
             Graphics2D g2d = (Graphics2D) g;
             g2d.setColor(Color.BLACK); // Border color
-            g2d.setStroke(new BasicStroke(3)); // Border thickness
+            g2d.setStroke(new BasicStroke(8)); // Border thickness
             g2d.drawRect(x, y,width, height);
             for (Room other : rooms) {
                 if (other != this && isAdjacent(other)) {
@@ -757,22 +882,33 @@ add(leftPanel, BorderLayout.WEST);
         public void drawDoor(Graphics2D g2d, Room other) {
             // Check if the rooms are adjacent
             if (isAdjacent(other)) {
-                int doorWidth = Math.min(width, other.width) / 5; // Door width is 1/5th of the shorter wall
-                int doorHeight = Math.min(height, other.height) / 5; // Door height is 1/5th of the shorter wall
-    
-                // If the rooms are adjacent vertically (side by side)
-                if (y + height == other.y || y == other.y + other.height) {
-                    int doorX = Math.max(x, other.x) + (Math.min(x + width, other.x + other.width) - Math.max(x, other.x)) / 2 - doorWidth / 2;
-                    int doorY = (y + height + other.y) / 2 - doorHeight / 2;
-                    g2d.setColor(Color.white); // Door color
-                    g2d.fillRect(doorX, doorY, doorWidth, doorHeight); // Draw the door
+                int borderThickness = 4; // Match the border thickness
+                int doorLength = 30; // Fixed door length for better visibility
+        
+                // Minimum overlap required (30% of the smaller dimension)
+                int minOverlap = (int)(Math.min(Math.min(width, other.width), Math.min(height, other.height)) * 0.3);
+        
+                // If the rooms are adjacent horizontally (side by side)
+                if (x + width == other.x || x == other.x + other.width) {
+                    // Calculate vertical overlap
+                    int overlap = Math.min(y + height, other.y + other.height) - Math.max(y, other.y);
+                    if (overlap >= minOverlap) {
+                        int doorX = x + width == other.x ? x + width - borderThickness / 2 : x - borderThickness / 2;
+                        int doorY = Math.max(y, other.y) + overlap / 2 - doorLength / 2;
+                        g2d.setColor(Color.white); // Door color
+                        g2d.fillRect(doorX, doorY, borderThickness, doorLength); // Draw the door
+                    }
                 }
-                // If the rooms are adjacent horizontally (on top of each other)
-                else if (x + width == other.x || x == other.x + other.width) {
-                    int doorX = (x + width + other.x) / 2 - doorWidth / 2;
-                    int doorY = Math.max(y, other.y) + (Math.min(y + height, other.y + other.height) - Math.max(y, other.y)) / 2 - doorHeight / 2;
-                    g2d.setColor(Color.white); // Door color
-                    g2d.fillRect(doorX, doorY, doorWidth, doorHeight); // Draw the door
+                // If the rooms are adjacent vertically (on top of each other)
+                else if (y + height == other.y || y == other.y + other.height) {
+                    // Calculate horizontal overlap
+                    int overlap = Math.min(x + width, other.x + other.width) - Math.max(x, other.x);
+                    if (overlap >= minOverlap) {
+                        int doorX = Math.max(x, other.x) + overlap / 2 - doorLength / 2;
+                        int doorY = y + height == other.y ? y + height - borderThickness / 2 : y - borderThickness / 2;
+                        g2d.setColor(Color.white); // Door color
+                        g2d.fillRect(doorX, doorY, doorLength, borderThickness); // Draw the door
+                    }
                 }
             }
         }

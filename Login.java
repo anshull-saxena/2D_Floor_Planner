@@ -1,18 +1,39 @@
-import javax.swing.*;
-import java.awt.*;
-import java.awt.event.*;
-import com.formdev.flatlaf.FlatLightLaf;
-import com.formdev.flatlaf.themes.FlatMacLightLaf;
-import com.google.firebase.auth.FirebaseAuth;
-import com.google.firebase.auth.FirebaseAuthException;
-import com.google.firebase.auth.UserRecord;
-import com.google.firebase.FirebaseApp;
-import com.google.firebase.FirebaseOptions;
-import com.google.auth.oauth2.GoogleCredentials;
+import java.awt.BorderLayout;
+import java.awt.Color;
+import java.awt.Desktop;
+import java.awt.Dimension;
+import java.awt.FlowLayout;
+import java.awt.Font;
+import java.awt.GridBagConstraints;
+import java.awt.GridBagLayout;
+import java.awt.Image;
+import java.awt.Insets;
+import java.awt.Taskbar;
+import java.awt.event.KeyAdapter;
+import java.awt.event.KeyEvent;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.net.URI;
-import java.net.URISyntaxException;
+
+import javax.swing.BorderFactory;
+import javax.swing.ImageIcon;
+import javax.swing.JButton;
+import javax.swing.JFrame;
+import javax.swing.JLabel;
+import javax.swing.JOptionPane;
+import javax.swing.JPanel;
+import javax.swing.JPasswordField;
+import javax.swing.JTextField;
+import javax.swing.SwingUtilities;
+import javax.swing.UIManager;
+
+import com.formdev.flatlaf.themes.FlatMacLightLaf;
+import com.google.auth.oauth2.GoogleCredentials;
+import com.google.firebase.FirebaseApp;
+import com.google.firebase.FirebaseOptions;
+import com.google.firebase.auth.FirebaseAuth;
+import com.google.firebase.auth.FirebaseAuthException;
+import com.google.firebase.auth.UserRecord;
 
 public class Login extends JFrame {
 
