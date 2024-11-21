@@ -49,8 +49,8 @@ public class RoomPlan2 extends JPanel {
     private String selectedRoomType = "Bedroom";
     private Color selectedRoomColor = Color.GREEN;
     private final int GRID_SIZE = 20;
-    private final int LEFT_PANEL_WIDTH = 100;
-    private final int BOTTOM_PANEL_HEIGHT = 80; // Height of the bottom panel
+    private final int LEFT_PANEL_WIDTH = 150;
+    private final int BOTTOM_PANEL_HEIGHT = 50; // Height of the bottom panel
     private Point hoverPoint = null;
     private JButton propertiesButton;
     private JButton modifyButton;
@@ -61,10 +61,12 @@ public class RoomPlan2 extends JPanel {
     private JButton addRoomButton;
     private JButton addRelativeButton; // Add Relative button
     private JButton addWindowButton;
+    private JButton zoomInButton;
     private List<Furniture> furnitureList = new ArrayList<>();
     private Furniture selectedFurniture = null;
     private Map<Furniture, Room> furnitureRoomMap = new HashMap<>();
     private Map<Furniture, Point> furnitureRelativePositions = new HashMap<>();
+    private double zoomScale = 1.0;
 
     public RoomPlan2() {
         setLayout(new BorderLayout());
@@ -668,6 +670,12 @@ add(leftPanel, BorderLayout.WEST);
             }
         });
     
+        zoomInButton = new JButton("Zoom In");
+        zoomInButton.addActionListener(e -> {
+            zoomScale *= 1.2; // Increase zoom by 20%
+            repaint();
+        });
+    
         // Add buttons to the panel
         JPanel buttonPanel = new JPanel();
         buttonPanel.setPreferredSize(new Dimension(getWidth(), BOTTOM_PANEL_HEIGHT));
@@ -678,10 +686,11 @@ add(leftPanel, BorderLayout.WEST);
         buttonPanel.add(setPositionButton);
         buttonPanel.add(addRoomButton);
         buttonPanel.add(propertiesButton);
-        buttonPanel.add(modifyButton); 
+        buttonPanel.add(modifyButton); // Show Modify button
         buttonPanel.add(addFurnButton);// Add Modify button
         buttonPanel.add(addRelativeButton); 
         buttonPanel.add(addWindowButton);
+        buttonPanel.add(zoomInButton);
 
         add(buttonPanel, BorderLayout.SOUTH);
 
@@ -855,7 +864,7 @@ add(leftPanel, BorderLayout.WEST);
                 if (selectedFurniture != null) {
                     int newX = e.getX() - selectedFurniture.getWidth() / 2;
                     int newY = e.getY() - selectedFurniture.getHeight() / 2;
-
+                    
                     Room containingRoom = null;
                     for (Room room : rooms) {
                         if (newX >= room.getX() && 
@@ -939,47 +948,69 @@ add(leftPanel, BorderLayout.WEST);
         public void draw(Graphics g) {
             g.setColor(color);
             g.fillRect(x, y, width, height);
-            g.setColor(Color.BLACK);
-            g.drawRect(x, y, width, height);
-
+            
             Graphics2D g2d = (Graphics2D) g;
-            g2d.setColor(Color.BLACK); // Border color
-            g2d.setStroke(new BasicStroke(8)); // Border thickness
-            g2d.drawRect(x, y,width, height);
+            
+            // Draw room border first
+            g2d.setColor(Color.BLACK);
+            int borderWidth = 8; // Define border width to use consistently
+            g2d.setStroke(new BasicStroke(borderWidth));
+            g2d.drawRect(x, y, width, height);
+            
+            // Draw windows
+            float[] dashPattern = {6, 6};
+            BasicStroke dashedStroke = new BasicStroke(borderWidth, BasicStroke.CAP_BUTT, 
+                                             BasicStroke.JOIN_BEVEL, 0, dashPattern, 0);
+            g2d.setStroke(dashedStroke);
+            
+            for (Window window : windows) {
+                int position = window.getPosition();
+                
+                // First fill with white
+                g2d.setColor(Color.WHITE);
+                switch (window.wall) {
+                    case 'N' -> {
+                        // Draw white background
+                        g2d.fillRect(x + position - Window.WINDOW_LENGTH/2, y - borderWidth/2,
+                                    Window.WINDOW_LENGTH, borderWidth);
+                        // Draw dashed black line
+                        g2d.setColor(Color.BLACK);
+                        g2d.drawLine(x + position - Window.WINDOW_LENGTH/2, y,
+                           x + position + Window.WINDOW_LENGTH/2, y);
+                    }
+                    case 'S' -> {
+                        g2d.fillRect(x + position - Window.WINDOW_LENGTH/2, y + height - borderWidth/2,
+                                    Window.WINDOW_LENGTH, borderWidth);
+                        g2d.setColor(Color.BLACK);
+                        g2d.drawLine(x + position - Window.WINDOW_LENGTH/2, y + height,
+                           x + position + Window.WINDOW_LENGTH/2, y + height);
+                    }
+                    case 'E' -> {
+                        g2d.fillRect(x + width - borderWidth/2, y + position - Window.WINDOW_LENGTH/2,
+                                    borderWidth, Window.WINDOW_LENGTH);
+                        g2d.setColor(Color.BLACK);
+                        g2d.drawLine(x + width, y + position - Window.WINDOW_LENGTH/2,
+                           x + width, y + position + Window.WINDOW_LENGTH/2);
+                    }
+                    case 'W' -> {
+                        g2d.fillRect(x - borderWidth/2, y + position - Window.WINDOW_LENGTH/2,
+                                    borderWidth, Window.WINDOW_LENGTH);
+                        g2d.setColor(Color.BLACK);
+                        g2d.drawLine(x, y + position - Window.WINDOW_LENGTH/2,
+                           x, y + position + Window.WINDOW_LENGTH/2);
+                    }
+                }
+            }
+            
+            // Reset stroke for doors
+            g2d.setStroke(new BasicStroke(borderWidth));
+            
+            // Draw doors
             for (Room other : rooms) {
                 if (other != this && isAdjacent(other)) {
                     drawDoor(g2d, other);
                 }
-            
             }
-
-            // Draw windows
-            float[] dashPattern = {6, 6}; // 10 pixels on, 10 pixels off
-            g2d.setStroke(new BasicStroke(10, BasicStroke.CAP_BUTT, BasicStroke.JOIN_BEVEL, 0, dashPattern, 0));
-            
-            for (Window window : windows) {
-                switch (window.wall) {
-                    case 'N' -> {
-                        g2d.drawLine(x + window.position - Window.WINDOW_LENGTH/2, y,
-                                   x + window.position + Window.WINDOW_LENGTH/2, y);
-                    }
-                    case 'S' -> {
-                        g2d.drawLine(x + window.position - Window.WINDOW_LENGTH/2, y + height,
-                                   x + window.position + Window.WINDOW_LENGTH/2, y + height);
-                    }
-                    case 'E' -> {
-                        g2d.drawLine(x + width, y + window.position - Window.WINDOW_LENGTH/2,
-                                   x + width, y + window.position + Window.WINDOW_LENGTH/2);
-                    }
-                    case 'W' -> {
-                        g2d.drawLine(x, y + window.position - Window.WINDOW_LENGTH/2,
-                                   x, y + window.position + Window.WINDOW_LENGTH/2);
-                    }
-                }
-            }
-
-            // Reset stroke for doors
-            g2d.setStroke(new BasicStroke(8));
         }
 
         public boolean isAdjacent(Room other) {
@@ -995,31 +1026,103 @@ add(leftPanel, BorderLayout.WEST);
             // Check if the rooms are adjacent
             if (isAdjacent(other)) {
                 int borderThickness = 10; // Match the border thickness
-                int doorLength = 30; // Fixed door length for better visibility
-        
-                // Minimum overlap required (30% of the smaller dimension)
-                int minOverlap = (int)(Math.min(Math.min(width, other.width), Math.min(height, other.height)) * 0.3);
-        
+                
                 // If the rooms are adjacent horizontally (side by side)
                 if (x + width == other.x || x == other.x + other.width) {
                     // Calculate vertical overlap
                     int overlap = Math.min(y + height, other.y + other.height) - Math.max(y, other.y);
-                    if (overlap >= minOverlap) {
+                    if (overlap >= 30) { // Minimum overlap required
+                        // Calculate wall height (the overlap)
+                        int wallHeight = overlap;
+                        // Door should be at most 1/3 of wall height and no more than 25 pixels
+                        int doorLength = Math.min(25, wallHeight / 3);
+                        
                         int doorX = x + width == other.x ? x + width - borderThickness / 2 : x - borderThickness / 2;
                         int doorY = Math.max(y, other.y) + overlap / 2 - doorLength / 2;
-                        g2d.setColor(Color.white); // Door color
-                        g2d.fillRect(doorX, doorY, borderThickness, doorLength); // Draw the door
+                        
+                        // Check for window overlap
+                        boolean windowOverlap = false;
+                        char wallToCheck = x + width == other.x ? 'E' : 'W';
+                        
+                        // Check windows in the current room
+                        for (Window window : windows) {
+                            if (window.wall == wallToCheck) {
+                                int winPos = window.getPosition();
+                                if (winPos >= doorY && winPos <= doorY + doorLength) {
+                                    windowOverlap = true;
+                                    break;
+                                }
+                            }
+                        }
+                        
+                        // Check windows in the adjacent room
+                        if (!windowOverlap) {
+                            char otherWallToCheck = x + width == other.x ? 'W' : 'E';
+                            for (Window window : other.windows) {
+                                if (window.wall == otherWallToCheck) {
+                                    int winPos = window.getPosition();
+                                    if (winPos >= doorY && winPos <= doorY + doorLength) {
+                                        windowOverlap = true;
+                                        break;
+                                    }
+                                }
+                            }
+                        }
+                        
+                        // Only draw the door if there's no window overlap
+                        if (!windowOverlap) {
+                            g2d.setColor(Color.white); // Door color
+                            g2d.fillRect(doorX, doorY, borderThickness, doorLength); // Draw the door
+                        }
                     }
                 }
                 // If the rooms are adjacent vertically (on top of each other)
                 else if (y + height == other.y || y == other.y + other.height) {
                     // Calculate horizontal overlap
                     int overlap = Math.min(x + width, other.x + other.width) - Math.max(x, other.x);
-                    if (overlap >= minOverlap) {
+                    if (overlap >= 30) { // Minimum overlap required
+                        // Calculate wall width (the overlap)
+                        int wallWidth = overlap;
+                        // Door should be at most 1/3 of wall width and no more than 25 pixels
+                        int doorLength = Math.min(25, wallWidth / 3);
+                        
                         int doorX = Math.max(x, other.x) + overlap / 2 - doorLength / 2;
                         int doorY = y + height == other.y ? y + height - borderThickness / 2 : y - borderThickness / 2;
-                        g2d.setColor(Color.white); // Door color
-                        g2d.fillRect(doorX, doorY, doorLength, borderThickness); // Draw the door
+                        
+                        // Check for window overlap
+                        boolean windowOverlap = false;
+                        char wallToCheck = y + height == other.y ? 'S' : 'N';
+                        
+                        // Check windows in the current room
+                        for (Window window : windows) {
+                            if (window.wall == wallToCheck) {
+                                int winPos = window.getPosition();
+                                if (winPos >= doorX && winPos <= doorX + doorLength) {
+                                    windowOverlap = true;
+                                    break;
+                                }
+                            }
+                        }
+                        
+                        // Check windows in the adjacent room
+                        if (!windowOverlap) {
+                            char otherWallToCheck = y + height == other.y ? 'N' : 'S';
+                            for (Window window : other.windows) {
+                                if (window.wall == otherWallToCheck) {
+                                    int winPos = window.getPosition();
+                                    if (winPos >= doorX && winPos <= doorX + doorLength) {
+                                        windowOverlap = true;
+                                        break;
+                                    }
+                                }
+                            }
+                        }
+                        
+                        // Only draw the door if there's no window overlap
+                        if (!windowOverlap) {
+                            g2d.setColor(Color.white); // Door color
+                            g2d.fillRect(doorX, doorY, doorLength, borderThickness); // Draw the door
+                        }
                     }
                 }
             }
@@ -1058,10 +1161,12 @@ add(leftPanel, BorderLayout.WEST);
 
         public void setWidth(int width) {
             this.width = width;
+            // Windows will automatically adjust due to proportion-based positioning
         }
 
         public void setHeight(int height) {
             this.height = height;
+            // Windows will automatically adjust due to proportion-based positioning
         }
 
         public String getRoomType() {
@@ -1069,21 +1174,66 @@ add(leftPanel, BorderLayout.WEST);
         }
 
         public class Window {
-            private int position; // Position along the wall (x or y coordinate)
+            private double proportion; // Position as proportion along the wall (0.0 to 1.0)
             private char wall;    // 'N' for North, 'S' for South, 'E' for East, 'W' for West
             private static final int WINDOW_LENGTH = 40;
             
             public Window(int position, char wall) {
-                this.position = position;
+                // Convert absolute position to proportion
                 this.wall = wall;
+                if (wall == 'N' || wall == 'S') {
+                    this.proportion = (double)position / Room.this.width;
+                } else {
+                    this.proportion = (double)position / Room.this.height;
+                }
+            }
+
+            public int getPosition() {
+                // Convert proportion back to absolute position
+                if (wall == 'N' || wall == 'S') {
+                    return (int)(proportion * Room.this.width);
+                } else {
+                    return (int)(proportion * Room.this.height);
+                }
             }
         }
 
+        private boolean isWallShared(char wall) {
+            for (Room other : rooms) {
+                if (other != this && isAdjacent(other)) {
+                    switch (wall) {
+                        case 'N' -> {
+                            if (y == other.y + other.height) return true;
+                        }
+                        case 'S' -> {
+                            if (y + height == other.y) return true;
+                        }
+                        case 'E' -> {
+                            if (x + width == other.x) return true;
+                        }
+                        case 'W' -> {
+                            if (x == other.x + other.width) return true;
+                        }
+                    }
+                }
+            }
+            return false;
+        }
+
         public void addWindow(int position, char wall) {
+            if (isWallShared(wall)) {
+                JOptionPane.showMessageDialog(null, 
+                    "Cannot add window on a shared wall between rooms.", 
+                    "Invalid Window Position", 
+                    JOptionPane.ERROR_MESSAGE);
+                return;
+            }
+
             // Check if window overlaps with existing windows
             for (Window w : windows) {
                 if (w.wall == wall) {
-                    if (Math.abs(w.position - position) < Window.WINDOW_LENGTH) {
+                    int existingPos = w.getPosition();
+                    if (Math.abs(existingPos - position) < Window.WINDOW_LENGTH) {
                         return; // Window would overlap, don't add it
                     }
                 }
