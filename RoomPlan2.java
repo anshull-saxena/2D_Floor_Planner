@@ -20,7 +20,9 @@ import java.io.FileReader;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 import javax.swing.Box;
 import javax.swing.JButton;
@@ -58,8 +60,11 @@ public class RoomPlan2 extends JPanel {
     private JButton setPositionButton;
     private JButton addRoomButton;
     private JButton addRelativeButton; // Add Relative button
+    private JButton addWindowButton;
     private List<Furniture> furnitureList = new ArrayList<>();
     private Furniture selectedFurniture = null;
+    private Map<Furniture, Room> furnitureRoomMap = new HashMap<>();
+    private Map<Furniture, Point> furnitureRelativePositions = new HashMap<>();
 
     public RoomPlan2() {
         setLayout(new BorderLayout());
@@ -195,6 +200,8 @@ resetButton.setPreferredSize(buttonSize);
 //functionality to reset 
 resetButton.addActionListener(e -> {
     rooms.clear();
+    furnitureList.clear();
+    selectedRoom = null;
     repaint();
     
 });
@@ -520,6 +527,7 @@ add(leftPanel, BorderLayout.WEST);
 
                     Furniture newFurniture = new Furniture(furnX, furnY, furnWidth, furnHeight, options[choice]);
                     furnitureList.add(newFurniture);
+                    updateFurnitureRoomMapping(newFurniture, selectedRoom);
                     repaint();
                 }
             }
@@ -622,6 +630,44 @@ add(leftPanel, BorderLayout.WEST);
             }
         });
     
+        addWindowButton = new JButton("Add Window");
+        addWindowButton.setVisible(false); // Initially invisible
+        addWindowButton.addActionListener(e -> {
+            if (selectedRoom != null) {
+                String[] options = {"North Wall", "South Wall", "East Wall", "West Wall"};
+                String wall = (String) JOptionPane.showInputDialog(
+                    this,
+                    "Select wall for window:",
+                    "Add Window",
+                    JOptionPane.QUESTION_MESSAGE,
+                    null,
+                    options,
+                    options[0]
+                );
+                
+                if (wall != null) {
+                    char wallChar = wall.charAt(0);
+                    int position;
+                    
+                    // Calculate middle position based on wall
+                    switch (wall) {
+                        case "North Wall", "South Wall" -> {
+                            position = selectedRoom.getWidth() / 2;
+                        }
+                        case "East Wall", "West Wall" -> {
+                            position = selectedRoom.getHeight() / 2;
+                        }
+                        default -> {
+                            return;
+                        }
+                    }
+                    
+                    selectedRoom.addWindow(position, wallChar);
+                    repaint();
+                }
+            }
+        });
+    
         // Add buttons to the panel
         JPanel buttonPanel = new JPanel();
         buttonPanel.setPreferredSize(new Dimension(getWidth(), BOTTOM_PANEL_HEIGHT));
@@ -635,6 +681,7 @@ add(leftPanel, BorderLayout.WEST);
         buttonPanel.add(modifyButton); 
         buttonPanel.add(addFurnButton);// Add Modify button
         buttonPanel.add(addRelativeButton); 
+        buttonPanel.add(addWindowButton);
 
         add(buttonPanel, BorderLayout.SOUTH);
 
@@ -660,6 +707,7 @@ add(leftPanel, BorderLayout.WEST);
                     setPositionButton.setVisible(false);
                     addRoomButton.setVisible(false);
                     addFurnButton.setVisible(true);
+                    addWindowButton.setVisible(false);
                     selectedRoom = null;
                 } else {
                     Room clickedRoom = null;
@@ -684,6 +732,7 @@ add(leftPanel, BorderLayout.WEST);
                         setPositionButton.setVisible(false);
                         addRoomButton.setVisible(false);
                         addFurnButton.setVisible(true);
+                        addWindowButton.setVisible(true);
                     } else {
                         selectedRoom = null;
                         selectedFurniture = null;
@@ -695,6 +744,7 @@ add(leftPanel, BorderLayout.WEST);
                         setPositionButton.setVisible(true);
                         addRoomButton.setVisible(true);
                         addFurnButton.setVisible(false);
+                        addWindowButton.setVisible(false);
                     }
                 }
                 repaint();
@@ -724,6 +774,7 @@ add(leftPanel, BorderLayout.WEST);
                     setPositionButton.setVisible(false);
                     addRoomButton.setVisible(false);
                     addFurnButton.setVisible(true);
+                    addWindowButton.setVisible(true);
                 } else {
                     selectedRoom = null;
                     propertiesButton.setVisible(false);
@@ -733,6 +784,7 @@ add(leftPanel, BorderLayout.WEST);
                     setPositionButton.setVisible(true);
                     addRoomButton.setVisible(true);
                     addFurnButton.setVisible(false);
+                    addWindowButton.setVisible(false);
                 }
                 repaint();
             }
@@ -766,6 +818,7 @@ add(leftPanel, BorderLayout.WEST);
                     int newX = e.getX() - mouseOffset.x;
                     int newY = e.getY() - mouseOffset.y;
 
+                    // Apply boundary constraints
                     if (newX < LEFT_PANEL_WIDTH) {
                         newX = LEFT_PANEL_WIDTH;
                     }
@@ -779,19 +832,22 @@ add(leftPanel, BorderLayout.WEST);
                         newY = getHeight() - BOTTOM_PANEL_HEIGHT - selectedRoom.getHeight();
                     }
 
-                    // Calculate the change in position
-                    int deltaX = newX - selectedRoom.getX();
-                    int deltaY = newY - selectedRoom.getY();
+                    // Calculate the change in position with movement smoothing
+                    int deltaX = (newX - selectedRoom.getX()) / 2; // Smooth movement by moving halfway
+                    int deltaY = (newY - selectedRoom.getY()) / 2;
 
                     // Update room position
-                    selectedRoom.setX(newX);
-                    selectedRoom.setY(newY);
+                    selectedRoom.setX(selectedRoom.getX() + deltaX);
+                    selectedRoom.setY(selectedRoom.getY() + deltaY);
 
-                    // Move all furniture that's inside this room
+                    // Update furniture positions based on their relative positions
                     for (Furniture furn : furnitureList) {
-                        if (isInsideRoom(furn, selectedRoom)) {
-                            furn.setX(furn.getX() + deltaX);
-                            furn.setY(furn.getY() + deltaY);
+                        if (furnitureRoomMap.get(furn) == selectedRoom) {
+                            Point relativePos = furnitureRelativePositions.get(furn);
+                            if (relativePos != null) {
+                                furn.setX(selectedRoom.getX() + relativePos.x);
+                                furn.setY(selectedRoom.getY() + relativePos.y);
+                            }
                         }
                     }
                     repaint();
@@ -814,11 +870,22 @@ add(leftPanel, BorderLayout.WEST);
                     if (containingRoom != null) {
                         selectedFurniture.setX(newX);
                         selectedFurniture.setY(newY);
+                        updateFurnitureRoomMapping(selectedFurniture, containingRoom);
                         repaint();
                     }
                 }
             }
         });
+    }
+
+    private void updateFurnitureRoomMapping(Furniture furniture, Room room) {
+        if (room != null) {
+            furnitureRoomMap.put(furniture, room);
+            // Store relative position within the room
+            int relativeX = furniture.getX() - room.getX();
+            int relativeY = furniture.getY() - room.getY();
+            furnitureRelativePositions.put(furniture, new Point(relativeX, relativeY));
+        }
     }
 
     @Override
@@ -854,6 +921,7 @@ add(leftPanel, BorderLayout.WEST);
         private int x, y, width, height;
         private Color color;
         private String type;
+        private List<Window> windows = new ArrayList<>();
 
         public Room(int x, int y, int width, int height, Color color, String type) {
             this.x = x;
@@ -885,6 +953,33 @@ add(leftPanel, BorderLayout.WEST);
             
             }
 
+            // Draw windows
+            float[] dashPattern = {6, 6}; // 10 pixels on, 10 pixels off
+            g2d.setStroke(new BasicStroke(10, BasicStroke.CAP_BUTT, BasicStroke.JOIN_BEVEL, 0, dashPattern, 0));
+            
+            for (Window window : windows) {
+                switch (window.wall) {
+                    case 'N' -> {
+                        g2d.drawLine(x + window.position - Window.WINDOW_LENGTH/2, y,
+                                   x + window.position + Window.WINDOW_LENGTH/2, y);
+                    }
+                    case 'S' -> {
+                        g2d.drawLine(x + window.position - Window.WINDOW_LENGTH/2, y + height,
+                                   x + window.position + Window.WINDOW_LENGTH/2, y + height);
+                    }
+                    case 'E' -> {
+                        g2d.drawLine(x + width, y + window.position - Window.WINDOW_LENGTH/2,
+                                   x + width, y + window.position + Window.WINDOW_LENGTH/2);
+                    }
+                    case 'W' -> {
+                        g2d.drawLine(x, y + window.position - Window.WINDOW_LENGTH/2,
+                                   x, y + window.position + Window.WINDOW_LENGTH/2);
+                    }
+                }
+            }
+
+            // Reset stroke for doors
+            g2d.setStroke(new BasicStroke(8));
         }
 
         public boolean isAdjacent(Room other) {
@@ -896,11 +991,10 @@ add(leftPanel, BorderLayout.WEST);
             return isAdjacentVertically || isAdjacentHorizontally;
         }
 
-
         public void drawDoor(Graphics2D g2d, Room other) {
             // Check if the rooms are adjacent
             if (isAdjacent(other)) {
-                int borderThickness = 4; // Match the border thickness
+                int borderThickness = 10; // Match the border thickness
                 int doorLength = 30; // Fixed door length for better visibility
         
                 // Minimum overlap required (30% of the smaller dimension)
@@ -972,6 +1066,36 @@ add(leftPanel, BorderLayout.WEST);
 
         public String getRoomType() {
             return type;
+        }
+
+        public class Window {
+            private int position; // Position along the wall (x or y coordinate)
+            private char wall;    // 'N' for North, 'S' for South, 'E' for East, 'W' for West
+            private static final int WINDOW_LENGTH = 40;
+            
+            public Window(int position, char wall) {
+                this.position = position;
+                this.wall = wall;
+            }
+        }
+
+        public void addWindow(int position, char wall) {
+            // Check if window overlaps with existing windows
+            for (Window w : windows) {
+                if (w.wall == wall) {
+                    if (Math.abs(w.position - position) < Window.WINDOW_LENGTH) {
+                        return; // Window would overlap, don't add it
+                    }
+                }
+            }
+            
+            // Check if position is valid (not too close to edges)
+            int maxPosition = (wall == 'N' || wall == 'S') ? width : height;
+            if (position < Window.WINDOW_LENGTH || position > maxPosition - Window.WINDOW_LENGTH) {
+                return; // Too close to edge
+            }
+            
+            windows.add(new Window(position, wall));
         }
     }
 
