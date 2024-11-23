@@ -29,6 +29,7 @@ import java.util.List;
 import java.util.Map;
 
 import javax.imageio.ImageIO;
+import javax.swing.BorderFactory;
 import javax.swing.Box;
 import javax.swing.JButton;
 import javax.swing.JComboBox;
@@ -40,7 +41,6 @@ import javax.swing.JPanel;
 import javax.swing.JTextField;
 import javax.swing.SwingUtilities;
 import javax.swing.UIManager;
-import javax.swing.border.BorderFactory;
 
 import com.formdev.flatlaf.themes.FlatMacLightLaf;
 
@@ -56,7 +56,7 @@ public class RoomPlan2 extends JPanel {
     private String selectedRoomType = "Bedroom";
     private Color selectedRoomColor = Color.GREEN;
     private final int GRID_SIZE = 20;
-    private final int LEFT_PANEL_WIDTH = 150;
+    private final int LEFT_PANEL_WIDTH = 250; // Increased from 150 to 250
     private final int BOTTOM_PANEL_HEIGHT = 50; // Height of the bottom panel
     private Point hoverPoint = null;
     private JButton propertiesButton;
@@ -77,6 +77,8 @@ public class RoomPlan2 extends JPanel {
     private double zoomScale = 1.0;
 
     private static final Map<String, BufferedImage> furnitureImages = new HashMap<>();
+    private static final String[] ROOM_TYPES = {"Bedroom", "Kitchen", "Living Room", "Bathroom", "Drawing Room"};
+    private static final Color[] ROOM_COLORS = {Color.GREEN, Color.RED, Color.ORANGE, Color.BLUE, Color.YELLOW};
 
     static {
         try {
@@ -109,21 +111,19 @@ public class RoomPlan2 extends JPanel {
         legendPanel.setLayout(new GridLayout(5, 1, 5, 5));
         legendPanel.setBackground(Color.LIGHT_GRAY);
         legendPanel.setBorder(BorderFactory.createTitledBorder("Room Types"));
+        legendPanel.setPreferredSize(new Dimension(180, 400)); // Increased height to 400 pixels
 
         // Create legend items
-        String[] roomTypes = {"Bedroom", "Kitchen", "Living Room", "Bathroom", "Drawing Room"};
-        Color[] roomColors = {Color.GREEN, Color.RED, Color.ORANGE, Color.BLUE, Color.YELLOW};
-        
-        for (int i = 0; i < roomTypes.length; i++) {
+        for (int i = 0; i < ROOM_TYPES.length; i++) {
             JPanel itemPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
             itemPanel.setBackground(Color.LIGHT_GRAY);
             
             JPanel colorBox = new JPanel();
             colorBox.setPreferredSize(new Dimension(20, 20));
-            colorBox.setBackground(roomColors[i]);
+            colorBox.setBackground(ROOM_COLORS[i]);
             colorBox.setBorder(BorderFactory.createLineBorder(Color.BLACK));
             
-            JLabel label = new JLabel(roomTypes[i]);
+            JLabel label = new JLabel(ROOM_TYPES[i]);
             label.setFont(new Font("Arial", Font.PLAIN, 12));
             
             itemPanel.add(colorBox);
@@ -283,8 +283,8 @@ public class RoomPlan2 extends JPanel {
 
         roomTypeButton = new JButton("Room Type");
         roomTypeButton.addActionListener(e -> {
-            String[] roomTypes = {"Bedroom", "Kitchen", "Living Room", "Bathroom", "Drawing Room"};
-            String selectedType = (String) JOptionPane.showInputDialog(null, "Choose Room Type:", "Room Type", JOptionPane.QUESTION_MESSAGE, null, roomTypes, roomTypes[0]);
+            String selectedType = (String) JOptionPane.showInputDialog(null, "Choose Room Type:", "Room Type", 
+                JOptionPane.QUESTION_MESSAGE, null, ROOM_TYPES, ROOM_TYPES[0]);
 
             if (selectedType != null) {
                 selectedRoomType = selectedType;
@@ -465,8 +465,7 @@ public class RoomPlan2 extends JPanel {
                     JPanel editPanel = new JPanel(new GridLayout(4, 2, 5, 5));
                     
                     // Room Type Selection
-                    String[] roomTypes = {"Bedroom", "Kitchen", "Living Room", "Bathroom", "Drawing Room"};
-                    JComboBox<String> roomTypeCombo = new JComboBox<>(roomTypes);
+                    JComboBox<String> roomTypeCombo = new JComboBox<>(ROOM_TYPES);
                     roomTypeCombo.setSelectedItem(selectedRoom.getRoomType());
                     editPanel.add(new JLabel("Room Type:"));
                     editPanel.add(roomTypeCombo);
@@ -681,10 +680,9 @@ public class RoomPlan2 extends JPanel {
                             }
                             
                             // Get room type
-                            String[] roomTypes = {"Bedroom", "Kitchen", "Living Room", "Bathroom", "Drawing Room"};
                             String newRoomType = (String) JOptionPane.showInputDialog(null, 
                                 "Choose Room Type:", "Room Type", 
-                                JOptionPane.QUESTION_MESSAGE, null, roomTypes, roomTypes[0]);
+                                JOptionPane.QUESTION_MESSAGE, null, ROOM_TYPES, ROOM_TYPES[0]);
                                 
                             if (newRoomType != null) {
                                 // Set color based on room type
@@ -938,16 +936,103 @@ public class RoomPlan2 extends JPanel {
                     
                     Room containingRoom = null;
                     for (Room room : rooms) {
-                        if (newX >= room.getX() && 
-                            newX + selectedFurniture.getWidth() <= room.getX() + room.getWidth() &&
-                            newY >= room.getY() && 
-                            newY + selectedFurniture.getHeight() <= room.getY() + room.getHeight()) {
+                        // Check if the furniture's center point is inside the room
+                        int furnCenterX = newX + selectedFurniture.getWidth() / 2;
+                        int furnCenterY = newY + selectedFurniture.getHeight() / 2;
+                        
+                        if (furnCenterX >= room.getX() && furnCenterX <= room.getX() + room.getWidth() &&
+                            furnCenterY >= room.getY() && furnCenterY <= room.getY() + room.getHeight()) {
                             containingRoom = room;
                             break;
                         }
                     }
-
+                    
                     if (containingRoom != null) {
+                        // Allow furniture to be placed anywhere within the room bounds
+                        int minX = containingRoom.getX();
+                        int maxX = containingRoom.getX() + containingRoom.getWidth() - selectedFurniture.getWidth();
+                        int minY = containingRoom.getY();
+                        int maxY = containingRoom.getY() + containingRoom.getHeight() - selectedFurniture.getHeight();
+                        
+                        // Constrain furniture position to room bounds
+                        newX = Math.max(minX, Math.min(maxX, newX));
+                        newY = Math.max(minY, Math.min(maxY, newY));
+                        
+                        selectedFurniture.setX(newX);
+                        selectedFurniture.setY(newY);
+                        updateFurnitureRoomMapping(selectedFurniture, containingRoom);
+                        repaint();
+                    }
+                } else if (selectedRoom != null && mouseOffset != null) {
+                    // Move room
+                    int newX = e.getX() - mouseOffset.x;
+                    int newY = e.getY() - mouseOffset.y;
+            
+                    if (newX < LEFT_PANEL_WIDTH) {
+                        newX = LEFT_PANEL_WIDTH;
+                    }
+                    if (newY < 0) {
+                        newY = 0;
+                    }
+                    if (newX + selectedRoom.getWidth() > getWidth()) {
+                        newX = getWidth() - selectedRoom.getWidth();
+                    }
+                    if (newY + selectedRoom.getHeight() > getHeight() - BOTTOM_PANEL_HEIGHT) {
+                        newY = getHeight() - BOTTOM_PANEL_HEIGHT - selectedRoom.getHeight();
+                    }
+            
+                    // Calculate the change in position
+                    int deltaX = newX - selectedRoom.getX();
+                    int deltaY = newY - selectedRoom.getY();
+            
+                    // Update room position
+                    selectedRoom.setX(newX);
+                    selectedRoom.setY(newY);
+            
+                    // Move all furniture that belongs to this room
+                    for (Map.Entry<Furniture, Room> entry : furnitureRoomMap.entrySet()) {
+                        if (entry.getValue() == selectedRoom) {
+                            Furniture furn = entry.getKey();
+                            furn.setX(furn.getX() + deltaX);
+                            furn.setY(furn.getY() + deltaY);
+                        }
+                    }
+                    repaint();
+                }
+            }
+        });
+
+        addMouseMotionListener(new MouseMotionAdapter() {
+            public void mouseDragged(MouseEvent e) {
+                if (selectedFurniture != null) {
+                    // Move furniture
+                    int newX = e.getX() - selectedFurniture.getWidth() / 2;
+                    int newY = e.getY() - selectedFurniture.getHeight() / 2;
+                    
+                    Room containingRoom = null;
+                    for (Room room : rooms) {
+                        // Check if the furniture's center point is inside the room
+                        int furnCenterX = newX + selectedFurniture.getWidth() / 2;
+                        int furnCenterY = newY + selectedFurniture.getHeight() / 2;
+                        
+                        if (furnCenterX >= room.getX() && furnCenterX <= room.getX() + room.getWidth() &&
+                            furnCenterY >= room.getY() && furnCenterY <= room.getY() + room.getHeight()) {
+                            containingRoom = room;
+                            break;
+                        }
+                    }
+                    
+                    if (containingRoom != null) {
+                        // Allow furniture to be placed anywhere within the room bounds
+                        int minX = containingRoom.getX();
+                        int maxX = containingRoom.getX() + containingRoom.getWidth() - selectedFurniture.getWidth();
+                        int minY = containingRoom.getY();
+                        int maxY = containingRoom.getY() + containingRoom.getHeight() - selectedFurniture.getHeight();
+                        
+                        // Constrain furniture position to room bounds
+                        newX = Math.max(minX, Math.min(maxX, newX));
+                        newY = Math.max(minY, Math.min(maxY, newY));
+                        
                         selectedFurniture.setX(newX);
                         selectedFurniture.setY(newY);
                         updateFurnitureRoomMapping(selectedFurniture, containingRoom);
