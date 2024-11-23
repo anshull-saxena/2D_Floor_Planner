@@ -56,7 +56,7 @@ public class RoomPlan2 extends JPanel {
     private String selectedRoomType = "Bedroom";
     private Color selectedRoomColor = Color.GREEN;
     private final int GRID_SIZE = 20;
-    private final int LEFT_PANEL_WIDTH = 280; // Increased from 250 to 280
+    private final int LEFT_PANEL_WIDTH = 250; // Increased from 150 to 250
     private final int BOTTOM_PANEL_HEIGHT = 50; // Height of the bottom panel
     private Point hoverPoint = null;
     private JButton propertiesButton;
@@ -103,72 +103,178 @@ public class RoomPlan2 extends JPanel {
 
         JPanel leftPanel = new JPanel();
         leftPanel.setPreferredSize(new Dimension(LEFT_PANEL_WIDTH, getHeight()));
-        leftPanel.setBackground(new Color(240, 240, 245)); // Light gray-blue background
+        leftPanel.setBackground(Color.LIGHT_GRAY);
         leftPanel.setLayout(new GridBagLayout());
-        leftPanel.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
 
-        // Add color legend panel with modern styling
+        // Add color legend panel
         JPanel legendPanel = new JPanel();
-        legendPanel.setLayout(new GridLayout(5, 1, 8, 8));
-        legendPanel.setBackground(new Color(255, 255, 255)); // White background
-        legendPanel.setBorder(BorderFactory.createCompoundBorder(
-            BorderFactory.createTitledBorder(
-                BorderFactory.createLineBorder(new Color(70, 130, 180), 2), // Steel blue border
-                "Room Types",
-                javax.swing.border.TitledBorder.DEFAULT_JUSTIFICATION,
-                javax.swing.border.TitledBorder.DEFAULT_POSITION,
-                new Font("Arial", Font.BOLD, 14),
-                new Color(70, 130, 180) // Steel blue text
-            ),
-            BorderFactory.createEmptyBorder(10, 10, 10, 10)
-        ));
-        legendPanel.setPreferredSize(new Dimension(220, 420)); // Increased width to 220 and height to 420
+        legendPanel.setLayout(new GridLayout(5, 1, 5, 5));
+        legendPanel.setBackground(Color.LIGHT_GRAY);
+        legendPanel.setBorder(BorderFactory.createTitledBorder("Room Types"));
+        legendPanel.setPreferredSize(new Dimension(180, 400)); // Increased height to 400 pixels
 
-        // Create legend items with modern styling
+        // Create legend items
         for (int i = 0; i < ROOM_TYPES.length; i++) {
-            JPanel itemPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 10, 5));
-            itemPanel.setBackground(Color.WHITE);
-            itemPanel.setBorder(BorderFactory.createEmptyBorder(5, 5, 5, 5));
+            JPanel itemPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
+            itemPanel.setBackground(Color.LIGHT_GRAY);
             
             JPanel colorBox = new JPanel();
-            colorBox.setPreferredSize(new Dimension(24, 24));
+            colorBox.setPreferredSize(new Dimension(20, 20));
             colorBox.setBackground(ROOM_COLORS[i]);
-            colorBox.setBorder(BorderFactory.createLineBorder(new Color(200, 200, 200))); // Light gray border
+            colorBox.setBorder(BorderFactory.createLineBorder(Color.BLACK));
             
             JLabel label = new JLabel(ROOM_TYPES[i]);
-            label.setFont(new Font("Arial", Font.PLAIN, 13));
-            label.setForeground(new Color(60, 60, 60)); // Dark gray text
+            label.setFont(new Font("Arial", Font.PLAIN, 12));
             
             itemPanel.add(colorBox);
-            itemPanel.add(Box.createHorizontalStrut(10));
             itemPanel.add(label);
             legendPanel.add(itemPanel);
         }
 
-        // Style the buttons
-        Dimension buttonSize = new Dimension(180, 40);
-        Color buttonBgColor = new Color(70, 130, 180); // Steel blue
-        Color buttonTextColor = Color.WHITE;
-        Font buttonFont = new Font("Arial", Font.BOLD, 12);
-
-        JButton downloadButton = createStyledButton("Download", buttonSize, buttonBgColor, buttonTextColor, buttonFont);
-        JButton openFileButton = createStyledButton("Open File", buttonSize, buttonBgColor, buttonTextColor, buttonFont);
-        JButton resetButton = createStyledButton("Reset", buttonSize, buttonBgColor, buttonTextColor, buttonFont);
-
-        // Add components with proper spacing
         GridBagConstraints gbc = new GridBagConstraints();
         gbc.gridx = 0;
         gbc.gridy = 0;
-        gbc.insets = new Insets(0, 0, 20, 0);
+        gbc.insets = new Insets(5, 5, 5, 5);
         gbc.anchor = GridBagConstraints.NORTH;
         leftPanel.add(legendPanel, gbc);
 
+        // Create buttons with fixed dimensions
+        Dimension buttonSize = new Dimension(180, 40); // Width slightly smaller than the panel width
+        JButton downloadButton = new JButton("Download");
+        downloadButton.setPreferredSize(buttonSize);
+        downloadButton.addActionListener(e -> {
+            if (rooms.isEmpty()) {
+                JOptionPane.showMessageDialog(this, "No rooms to save!", "Error", JOptionPane.ERROR_MESSAGE);
+                return;
+            }
+            
+            JFileChooser fileChooser = new JFileChooser();
+            fileChooser.setFileSelectionMode(JFileChooser.FILES_ONLY);
+            fileChooser.setSelectedFile(new java.io.File("floorplan.2ds"));
+            
+            if (fileChooser.showSaveDialog(this) == JFileChooser.APPROVE_OPTION) {
+                java.io.File file = fileChooser.getSelectedFile();
+                String filePath = file.getPath();
+                if (!filePath.endsWith(".2ds")) {
+                    filePath += ".2ds";
+                }
+                
+                try (FileWriter writer = new FileWriter(filePath)) {
+                    // Write header
+                    writer.write("2DS_FLOOR_PLAN\n");
+                    writer.write("VERSION 1.0\n");
+                    writer.write("ROOM_COUNT " + rooms.size() + "\n\n");
+                    
+                    // Write each room's data
+                    for (Room room : rooms) {
+                        writer.write("ROOM\n");
+                        writer.write("TYPE " + room.getRoomType() + "\n");
+                        writer.write("POSITION " + (room.getX() - LEFT_PANEL_WIDTH) + " " + room.getY() + "\n");
+                        writer.write("DIMENSIONS " + room.getWidth() + " " + room.getHeight() + "\n");
+                        writer.write("END_ROOM\n\n");
+                    }
+                    
+                    writer.write("END_FLOOR_PLAN");
+                    JOptionPane.showMessageDialog(this, "Floor plan saved successfully!", "Success", JOptionPane.INFORMATION_MESSAGE);
+                } catch (IOException ex) {
+                    JOptionPane.showMessageDialog(this, "Error saving floor plan: " + ex.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
+                }
+            }
+        });
+
         gbc.gridy = 1;
-        gbc.insets = new Insets(0, 0, 10, 0);
         leftPanel.add(downloadButton, gbc);
+
+        JButton openFileButton = new JButton("Open File");
+        openFileButton.setPreferredSize(buttonSize);
+        openFileButton.addActionListener(e -> {
+            JFileChooser fileChooser = new JFileChooser();
+            fileChooser.setFileFilter(new javax.swing.filechooser.FileFilter() {
+                public boolean accept(File f) {
+                    return f.isDirectory() || f.getName().toLowerCase().endsWith(".2ds");
+                }
+                public String getDescription() {
+                    return "2D Floor Plan Files (*.2ds)";
+                }
+            });
+            
+            if (fileChooser.showOpenDialog(this) == JFileChooser.APPROVE_OPTION) {
+                File file = fileChooser.getSelectedFile();
+                try (BufferedReader reader = new BufferedReader(new FileReader(file))) {
+                    // Clear existing rooms
+                    rooms.clear();
+                    
+                    String line;
+                    // Read header
+                    line = reader.readLine();
+                    if (!"2DS_FLOOR_PLAN".equals(line)) {
+                        throw new IOException("Invalid file format");
+                    }
+                    
+                    reader.readLine(); // Skip version
+                    reader.readLine(); // Skip room count
+                    reader.readLine(); // Skip empty line
+                    
+                    // Read rooms
+                    while ((line = reader.readLine()) != null) {
+                        if ("ROOM".equals(line)) {
+                            // Read room type
+                            String type = reader.readLine().substring(5); // Skip "TYPE "
+                            
+                            // Read position
+                            String[] position = reader.readLine().substring(9).split(" "); // Skip "POSITION "
+                            int x = Integer.parseInt(position[0]) + LEFT_PANEL_WIDTH;
+                            int y = Integer.parseInt(position[1]);
+                            
+                            // Read dimensions
+                            String[] dimensions = reader.readLine().substring(11).split(" "); // Skip "DIMENSIONS "
+                            int width = Integer.parseInt(dimensions[0]);
+                            int height = Integer.parseInt(dimensions[1]);
+                            
+                            // Set color based on room type
+                            Color color;
+                            switch (type) {
+                                case "Bedroom" -> color = Color.GREEN;
+                                case "Kitchen" -> color = Color.RED;
+                                case "Living Room" -> color = Color.ORANGE;
+                                case "Bathroom" -> color = Color.BLUE;
+                                case "Drawing Room" -> color = Color.YELLOW;
+                                default -> color = Color.GRAY;
+                            }
+                            
+                            // Create and add room
+                            Room room = new Room(x, y, width, height, color, type);
+                            rooms.add(room);
+                            
+                            reader.readLine(); // Skip "END_ROOM"
+                            reader.readLine(); // Skip empty line
+                        }
+                    }
+                    
+                    repaint();
+                    JOptionPane.showMessageDialog(this, "Floor plan loaded successfully!", "Success", JOptionPane.INFORMATION_MESSAGE);
+                } catch (IOException ex) {
+                    JOptionPane.showMessageDialog(this, "Error loading floor plan: " + ex.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
+                    rooms.clear(); // Clear rooms if there was an error
+                    repaint();
+                }
+            }
+        });
 
         gbc.gridy = 2;
         leftPanel.add(openFileButton, gbc);
+
+        JButton resetButton = new JButton("Reset");
+        resetButton.setPreferredSize(buttonSize);
+
+        //functionality to reset 
+        resetButton.addActionListener(e -> {
+            rooms.clear();
+            furnitureList.clear();
+            selectedRoom = null;
+            repaint();
+            
+        });
 
         gbc.gridy = 3;
         leftPanel.add(resetButton, gbc);
@@ -1572,27 +1678,4 @@ public class RoomPlan2 extends JPanel {
         });
     }
 
-    // Helper method to create styled buttons
-    private JButton createStyledButton(String text, Dimension size, Color bgColor, Color fgColor, Font font) {
-        JButton button = new JButton(text);
-        button.setPreferredSize(size);
-        button.setBackground(bgColor);
-        button.setForeground(fgColor);
-        button.setFont(font);
-        button.setFocusPainted(false);
-        button.setBorderPainted(false);
-        button.setOpaque(true);
-        
-        // Add hover effect
-        button.addMouseListener(new java.awt.event.MouseAdapter() {
-            public void mouseEntered(java.awt.event.MouseEvent evt) {
-                button.setBackground(bgColor.brighter());
-            }
-            public void mouseExited(java.awt.event.MouseEvent evt) {
-                button.setBackground(bgColor);
-            }
-        });
-        
-        return button;
-    }
 }
