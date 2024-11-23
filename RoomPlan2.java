@@ -3,6 +3,7 @@ import java.awt.BorderLayout;
 import java.awt.Color;
 import java.awt.Dimension;
 import java.awt.FlowLayout;
+import java.awt.Font;
 import java.awt.Graphics;
 import java.awt.Graphics2D;
 import java.awt.GridBagConstraints;
@@ -10,10 +11,13 @@ import java.awt.GridBagLayout;
 import java.awt.GridLayout;
 import java.awt.Insets;
 import java.awt.Point;
+import java.awt.event.ActionEvent;
+import java.awt.event.ActionListener;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.awt.event.MouseMotionAdapter;
 import java.awt.geom.AffineTransform;
+import java.awt.image.BufferedImage;
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileReader;
@@ -24,9 +28,11 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import javax.imageio.ImageIO;
 import javax.swing.Box;
 import javax.swing.JButton;
 import javax.swing.JComboBox;
+import javax.swing.JDialog;
 import javax.swing.JFileChooser;
 import javax.swing.JLabel;
 import javax.swing.JOptionPane;
@@ -34,6 +40,7 @@ import javax.swing.JPanel;
 import javax.swing.JTextField;
 import javax.swing.SwingUtilities;
 import javax.swing.UIManager;
+import javax.swing.border.BorderFactory;
 
 import com.formdev.flatlaf.themes.FlatMacLightLaf;
 
@@ -59,6 +66,7 @@ public class RoomPlan2 extends JPanel {
     private JButton setDimensionsButton;
     private JButton setPositionButton;
     private JButton addRoomButton;
+    private JButton modifyFurnitureButton;
     private JButton addRelativeButton; // Add Relative button
     private JButton addWindowButton;
     private JButton zoomInButton;
@@ -68,163 +76,210 @@ public class RoomPlan2 extends JPanel {
     private Map<Furniture, Point> furnitureRelativePositions = new HashMap<>();
     private double zoomScale = 1.0;
 
+    private static final Map<String, BufferedImage> furnitureImages = new HashMap<>();
+
+    static {
+        try {
+            furnitureImages.put("bed", ImageIO.read(new File("/Users/anshul/Downloads/OOPs2D/2D_Floor_Planner/images/bed.png")));
+            furnitureImages.put("chair", ImageIO.read(new File("/Users/anshul/Downloads/OOPs2D/2D_Floor_Planner/images/chair.png")));
+            furnitureImages.put("dining set", ImageIO.read(new File("/Users/anshul/Downloads/OOPs2D/2D_Floor_Planner/images/dining_set.png")));
+            furnitureImages.put("sofa", ImageIO.read(new File("/Users/anshul/Downloads/OOPs2D/2D_Floor_Planner/images/sofa.png")));
+            furnitureImages.put("table", ImageIO.read(new File("/Users/anshul/Downloads/OOPs2D/2D_Floor_Planner/images/table.png")));
+            furnitureImages.put("commode", ImageIO.read(new File("/Users/anshul/Downloads/OOPs2D/2D_Floor_Planner/images/commode.png")));
+            furnitureImages.put("washbasin", ImageIO.read(new File("/Users/anshul/Downloads/OOPs2D/2D_Floor_Planner/images/washbasin.png")));
+            furnitureImages.put("shower", ImageIO.read(new File("/Users/anshul/Downloads/OOPs2D/2D_Floor_Planner/images/shower.png")));
+            furnitureImages.put("kitchen sink", ImageIO.read(new File("/Users/anshul/Downloads/OOPs2D/2D_Floor_Planner/images/kitchensink.png")));
+            furnitureImages.put("stove", ImageIO.read(new File("/Users/anshul/Downloads/OOPs2D/2D_Floor_Planner/images/stove.png")));
+        } catch (IOException e) {
+            System.err.println("Error loading furniture images: " + e.getMessage());
+            e.printStackTrace();
+        }
+    }
+
     public RoomPlan2() {
         setLayout(new BorderLayout());
 
         JPanel leftPanel = new JPanel();
-        leftPanel.setPreferredSize(new Dimension(LEFT_PANEL_WIDTH, getHeight())); // LEFT_PANEL_WIDTH = 200
+        leftPanel.setPreferredSize(new Dimension(LEFT_PANEL_WIDTH, getHeight()));
         leftPanel.setBackground(Color.LIGHT_GRAY);
-        leftPanel.setLayout(new GridBagLayout()); // Center elements in the panel
+        leftPanel.setLayout(new GridBagLayout());
 
-// Create buttons with fixed dimensions
-Dimension buttonSize = new Dimension(180, 40); // Width slightly smaller than the panel width
-JButton downloadButton = new JButton("Download");
-downloadButton.setPreferredSize(buttonSize);
-downloadButton.addActionListener(e -> {
-    if (rooms.isEmpty()) {
-        JOptionPane.showMessageDialog(this, "No rooms to save!", "Error", JOptionPane.ERROR_MESSAGE);
-        return;
-    }
-    
-    JFileChooser fileChooser = new JFileChooser();
-    fileChooser.setFileSelectionMode(JFileChooser.FILES_ONLY);
-    fileChooser.setSelectedFile(new java.io.File("floorplan.2ds"));
-    
-    if (fileChooser.showSaveDialog(this) == JFileChooser.APPROVE_OPTION) {
-        java.io.File file = fileChooser.getSelectedFile();
-        String filePath = file.getPath();
-        if (!filePath.endsWith(".2ds")) {
-            filePath += ".2ds";
-        }
+        // Add color legend panel
+        JPanel legendPanel = new JPanel();
+        legendPanel.setLayout(new GridLayout(5, 1, 5, 5));
+        legendPanel.setBackground(Color.LIGHT_GRAY);
+        legendPanel.setBorder(BorderFactory.createTitledBorder("Room Types"));
+
+        // Create legend items
+        String[] roomTypes = {"Bedroom", "Kitchen", "Living Room", "Bathroom", "Drawing Room"};
+        Color[] roomColors = {Color.GREEN, Color.RED, Color.ORANGE, Color.BLUE, Color.YELLOW};
         
-        try (FileWriter writer = new FileWriter(filePath)) {
-            // Write header
-            writer.write("2DS_FLOOR_PLAN\n");
-            writer.write("VERSION 1.0\n");
-            writer.write("ROOM_COUNT " + rooms.size() + "\n\n");
+        for (int i = 0; i < roomTypes.length; i++) {
+            JPanel itemPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
+            itemPanel.setBackground(Color.LIGHT_GRAY);
             
-            // Write each room's data
-            for (Room room : rooms) {
-                writer.write("ROOM\n");
-                writer.write("TYPE " + room.getRoomType() + "\n");
-                writer.write("POSITION " + (room.getX() - LEFT_PANEL_WIDTH) + " " + room.getY() + "\n");
-                writer.write("DIMENSIONS " + room.getWidth() + " " + room.getHeight() + "\n");
-                writer.write("END_ROOM\n\n");
-            }
+            JPanel colorBox = new JPanel();
+            colorBox.setPreferredSize(new Dimension(20, 20));
+            colorBox.setBackground(roomColors[i]);
+            colorBox.setBorder(BorderFactory.createLineBorder(Color.BLACK));
             
-            writer.write("END_FLOOR_PLAN");
-            JOptionPane.showMessageDialog(this, "Floor plan saved successfully!", "Success", JOptionPane.INFORMATION_MESSAGE);
-        } catch (IOException ex) {
-            JOptionPane.showMessageDialog(this, "Error saving floor plan: " + ex.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
+            JLabel label = new JLabel(roomTypes[i]);
+            label.setFont(new Font("Arial", Font.PLAIN, 12));
+            
+            itemPanel.add(colorBox);
+            itemPanel.add(label);
+            legendPanel.add(itemPanel);
         }
-    }
-});
 
-JButton openFileButton = new JButton("Open File");
-openFileButton.setPreferredSize(buttonSize);
-openFileButton.addActionListener(e -> {
-    JFileChooser fileChooser = new JFileChooser();
-    fileChooser.setFileFilter(new javax.swing.filechooser.FileFilter() {
-        public boolean accept(File f) {
-            return f.isDirectory() || f.getName().toLowerCase().endsWith(".2ds");
-        }
-        public String getDescription() {
-            return "2D Floor Plan Files (*.2ds)";
-        }
-    });
-    
-    if (fileChooser.showOpenDialog(this) == JFileChooser.APPROVE_OPTION) {
-        File file = fileChooser.getSelectedFile();
-        try (BufferedReader reader = new BufferedReader(new FileReader(file))) {
-            // Clear existing rooms
-            rooms.clear();
-            
-            String line;
-            // Read header
-            line = reader.readLine();
-            if (!"2DS_FLOOR_PLAN".equals(line)) {
-                throw new IOException("Invalid file format");
+        GridBagConstraints gbc = new GridBagConstraints();
+        gbc.gridx = 0;
+        gbc.gridy = 0;
+        gbc.insets = new Insets(5, 5, 5, 5);
+        gbc.anchor = GridBagConstraints.NORTH;
+        leftPanel.add(legendPanel, gbc);
+
+        // Create buttons with fixed dimensions
+        Dimension buttonSize = new Dimension(180, 40); // Width slightly smaller than the panel width
+        JButton downloadButton = new JButton("Download");
+        downloadButton.setPreferredSize(buttonSize);
+        downloadButton.addActionListener(e -> {
+            if (rooms.isEmpty()) {
+                JOptionPane.showMessageDialog(this, "No rooms to save!", "Error", JOptionPane.ERROR_MESSAGE);
+                return;
             }
             
-            reader.readLine(); // Skip version
-            reader.readLine(); // Skip room count
-            reader.readLine(); // Skip empty line
+            JFileChooser fileChooser = new JFileChooser();
+            fileChooser.setFileSelectionMode(JFileChooser.FILES_ONLY);
+            fileChooser.setSelectedFile(new java.io.File("floorplan.2ds"));
             
-            // Read rooms
-            while ((line = reader.readLine()) != null) {
-                if ("ROOM".equals(line)) {
-                    // Read room type
-                    String type = reader.readLine().substring(5); // Skip "TYPE "
+            if (fileChooser.showSaveDialog(this) == JFileChooser.APPROVE_OPTION) {
+                java.io.File file = fileChooser.getSelectedFile();
+                String filePath = file.getPath();
+                if (!filePath.endsWith(".2ds")) {
+                    filePath += ".2ds";
+                }
+                
+                try (FileWriter writer = new FileWriter(filePath)) {
+                    // Write header
+                    writer.write("2DS_FLOOR_PLAN\n");
+                    writer.write("VERSION 1.0\n");
+                    writer.write("ROOM_COUNT " + rooms.size() + "\n\n");
                     
-                    // Read position
-                    String[] position = reader.readLine().substring(9).split(" "); // Skip "POSITION "
-                    int x = Integer.parseInt(position[0]) + LEFT_PANEL_WIDTH;
-                    int y = Integer.parseInt(position[1]);
-                    
-                    // Read dimensions
-                    String[] dimensions = reader.readLine().substring(11).split(" "); // Skip "DIMENSIONS "
-                    int width = Integer.parseInt(dimensions[0]);
-                    int height = Integer.parseInt(dimensions[1]);
-                    
-                    // Set color based on room type
-                    Color color;
-                    switch (type) {
-                        case "Bedroom" -> color = Color.GREEN;
-                        case "Kitchen" -> color = Color.RED;
-                        case "Living Room" -> color = Color.ORANGE;
-                        case "Bathroom" -> color = Color.BLUE;
-                        case "Drawing Room" -> color = Color.YELLOW;
-                        default -> color = Color.GRAY;
+                    // Write each room's data
+                    for (Room room : rooms) {
+                        writer.write("ROOM\n");
+                        writer.write("TYPE " + room.getRoomType() + "\n");
+                        writer.write("POSITION " + (room.getX() - LEFT_PANEL_WIDTH) + " " + room.getY() + "\n");
+                        writer.write("DIMENSIONS " + room.getWidth() + " " + room.getHeight() + "\n");
+                        writer.write("END_ROOM\n\n");
                     }
                     
-                    // Create and add room
-                    Room room = new Room(x, y, width, height, color, type);
-                    rooms.add(room);
-                    
-                    reader.readLine(); // Skip "END_ROOM"
-                    reader.readLine(); // Skip empty line
+                    writer.write("END_FLOOR_PLAN");
+                    JOptionPane.showMessageDialog(this, "Floor plan saved successfully!", "Success", JOptionPane.INFORMATION_MESSAGE);
+                } catch (IOException ex) {
+                    JOptionPane.showMessageDialog(this, "Error saving floor plan: " + ex.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
                 }
             }
+        });
+
+        gbc.gridy = 1;
+        leftPanel.add(downloadButton, gbc);
+
+        JButton openFileButton = new JButton("Open File");
+        openFileButton.setPreferredSize(buttonSize);
+        openFileButton.addActionListener(e -> {
+            JFileChooser fileChooser = new JFileChooser();
+            fileChooser.setFileFilter(new javax.swing.filechooser.FileFilter() {
+                public boolean accept(File f) {
+                    return f.isDirectory() || f.getName().toLowerCase().endsWith(".2ds");
+                }
+                public String getDescription() {
+                    return "2D Floor Plan Files (*.2ds)";
+                }
+            });
             
+            if (fileChooser.showOpenDialog(this) == JFileChooser.APPROVE_OPTION) {
+                File file = fileChooser.getSelectedFile();
+                try (BufferedReader reader = new BufferedReader(new FileReader(file))) {
+                    // Clear existing rooms
+                    rooms.clear();
+                    
+                    String line;
+                    // Read header
+                    line = reader.readLine();
+                    if (!"2DS_FLOOR_PLAN".equals(line)) {
+                        throw new IOException("Invalid file format");
+                    }
+                    
+                    reader.readLine(); // Skip version
+                    reader.readLine(); // Skip room count
+                    reader.readLine(); // Skip empty line
+                    
+                    // Read rooms
+                    while ((line = reader.readLine()) != null) {
+                        if ("ROOM".equals(line)) {
+                            // Read room type
+                            String type = reader.readLine().substring(5); // Skip "TYPE "
+                            
+                            // Read position
+                            String[] position = reader.readLine().substring(9).split(" "); // Skip "POSITION "
+                            int x = Integer.parseInt(position[0]) + LEFT_PANEL_WIDTH;
+                            int y = Integer.parseInt(position[1]);
+                            
+                            // Read dimensions
+                            String[] dimensions = reader.readLine().substring(11).split(" "); // Skip "DIMENSIONS "
+                            int width = Integer.parseInt(dimensions[0]);
+                            int height = Integer.parseInt(dimensions[1]);
+                            
+                            // Set color based on room type
+                            Color color;
+                            switch (type) {
+                                case "Bedroom" -> color = Color.GREEN;
+                                case "Kitchen" -> color = Color.RED;
+                                case "Living Room" -> color = Color.ORANGE;
+                                case "Bathroom" -> color = Color.BLUE;
+                                case "Drawing Room" -> color = Color.YELLOW;
+                                default -> color = Color.GRAY;
+                            }
+                            
+                            // Create and add room
+                            Room room = new Room(x, y, width, height, color, type);
+                            rooms.add(room);
+                            
+                            reader.readLine(); // Skip "END_ROOM"
+                            reader.readLine(); // Skip empty line
+                        }
+                    }
+                    
+                    repaint();
+                    JOptionPane.showMessageDialog(this, "Floor plan loaded successfully!", "Success", JOptionPane.INFORMATION_MESSAGE);
+                } catch (IOException ex) {
+                    JOptionPane.showMessageDialog(this, "Error loading floor plan: " + ex.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
+                    rooms.clear(); // Clear rooms if there was an error
+                    repaint();
+                }
+            }
+        });
+
+        gbc.gridy = 2;
+        leftPanel.add(openFileButton, gbc);
+
+        JButton resetButton = new JButton("Reset");
+        resetButton.setPreferredSize(buttonSize);
+
+        //functionality to reset 
+        resetButton.addActionListener(e -> {
+            rooms.clear();
+            furnitureList.clear();
+            selectedRoom = null;
             repaint();
-            JOptionPane.showMessageDialog(this, "Floor plan loaded successfully!", "Success", JOptionPane.INFORMATION_MESSAGE);
-        } catch (IOException ex) {
-            JOptionPane.showMessageDialog(this, "Error loading floor plan: " + ex.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
-            rooms.clear(); // Clear rooms if there was an error
-            repaint();
-        }
-    }
-});
+            
+        });
 
-JButton resetButton = new JButton("Reset");
-resetButton.setPreferredSize(buttonSize);
+        gbc.gridy = 3;
+        leftPanel.add(resetButton, gbc);
 
-//functionality to reset 
-resetButton.addActionListener(e -> {
-    rooms.clear();
-    furnitureList.clear();
-    selectedRoom = null;
-    repaint();
-    
-});
-
-GridBagConstraints gbc = new GridBagConstraints();
-gbc.insets = new Insets(10, 0, 10, 0); // Spacing between buttons
-gbc.gridx = 0; // Single column
-gbc.anchor = GridBagConstraints.CENTER; // Center alignment
-
-gbc.gridy = 0;
-leftPanel.add(downloadButton, gbc);
-
-gbc.gridy = 1;
-leftPanel.add(openFileButton, gbc);
-
-gbc.gridy = 2;
-leftPanel.add(resetButton, gbc);
-
-
-add(leftPanel, BorderLayout.WEST);
-
+        add(leftPanel, BorderLayout.WEST);
 
         roomTypeButton = new JButton("Room Type");
         roomTypeButton.addActionListener(e -> {
@@ -355,7 +410,7 @@ add(leftPanel, BorderLayout.WEST);
         modifyButton.setVisible(false); // Initially invisible
         modifyButton.addActionListener(e -> {
             if (selectedRoom != null) {
-                String[] options = {"Rotate", "Remove","Edit"};
+                String[] options = {"Rotate", "Remove","Edit","Add Door"};
                 int choice = JOptionPane.showOptionDialog(this, "Choose an option", "Modify Room", 
                         JOptionPane.DEFAULT_OPTION, JOptionPane.INFORMATION_MESSAGE, null, options, options[0]);
         
@@ -509,6 +564,9 @@ add(leftPanel, BorderLayout.WEST);
                                 JOptionPane.ERROR_MESSAGE);
                         }
                     }
+                } else if(choice == 3){
+                    // Add a door to the room
+                    selectedRoom.addDoor();
                 }
             }
         });
@@ -517,20 +575,62 @@ add(leftPanel, BorderLayout.WEST);
         addFurnButton.setVisible(false);
         addFurnButton.addActionListener(e -> {
             if (selectedRoom != null) {
-                String[] options = {"bed","chair", "table", "sofa", "dining set"};
+                String[] options = {"bed", "chair", "table", "sofa", "dining set", "commode", "washbasin", "shower", "kitchen sink", "stove"};
                 int choice = JOptionPane.showOptionDialog(this, "Choose Furniture", "Add Furniture", 
                         JOptionPane.DEFAULT_OPTION, JOptionPane.INFORMATION_MESSAGE, null, options, options[0]);
 
                 if (choice >= 0 && choice < options.length) {
-                    int furnWidth = selectedRoom.getWidth() / 5;
-                    int furnHeight = selectedRoom.getHeight() / 5;
+                    // Make furniture bigger (1/3 of room size instead of 1/5)
+                    int furnWidth = selectedRoom.getWidth() / 3;
+                    int furnHeight = selectedRoom.getHeight() / 3;
                     int furnX = selectedRoom.getX() + (selectedRoom.getWidth() - furnWidth) / 2;
                     int furnY = selectedRoom.getY() + (selectedRoom.getHeight() - furnHeight) / 2;
 
                     Furniture newFurniture = new Furniture(furnX, furnY, furnWidth, furnHeight, options[choice]);
                     furnitureList.add(newFurniture);
-                    updateFurnitureRoomMapping(newFurniture, selectedRoom);
+                    // Store the room that this furniture belongs to
+                    furnitureRoomMap.put(newFurniture, selectedRoom);
                     repaint();
+                }
+            }
+        });
+
+        modifyFurnitureButton = new JButton("Modify Furniture");
+        modifyFurnitureButton.setVisible(false);
+        modifyFurnitureButton.addActionListener(new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                if (selectedFurniture != null) {
+                    JDialog dialog = new JDialog();
+                    dialog.setTitle("Modify Furniture");
+                    dialog.setLayout(new FlowLayout());
+                    dialog.setSize(200, 100);
+                    dialog.setLocationRelativeTo(null);
+
+                    JButton rotateButton = new JButton("Rotate");
+                    rotateButton.addActionListener(new ActionListener() {
+                        @Override
+                        public void actionPerformed(ActionEvent e) {
+                            selectedFurniture.rotate();
+                            repaint();
+                            dialog.dispose();
+                        }
+                    });
+
+                    JButton removeButton = new JButton("Remove");
+                    removeButton.addActionListener(new ActionListener() {
+                        @Override
+                        public void actionPerformed(ActionEvent e) {
+                            furnitureList.remove(selectedFurniture);
+                            selectedFurniture = null;
+                            repaint();
+                            dialog.dispose();
+                        }
+                    });
+
+                    dialog.add(rotateButton);
+                    dialog.add(removeButton);
+                    dialog.setVisible(true);
                 }
             }
         });
@@ -631,7 +731,8 @@ add(leftPanel, BorderLayout.WEST);
                 JOptionPane.showMessageDialog(this, "No room is selected!", "Error", JOptionPane.ERROR_MESSAGE);
             }
         });
-    
+
+
         addWindowButton = new JButton("Add Window");
         addWindowButton.setVisible(false); // Initially invisible
         addWindowButton.addActionListener(e -> {
@@ -676,6 +777,8 @@ add(leftPanel, BorderLayout.WEST);
             repaint();
         });
     
+
+        
         // Add buttons to the panel
         JPanel buttonPanel = new JPanel();
         buttonPanel.setPreferredSize(new Dimension(getWidth(), BOTTOM_PANEL_HEIGHT));
@@ -690,6 +793,7 @@ add(leftPanel, BorderLayout.WEST);
         buttonPanel.add(addFurnButton);// Add Modify button
         buttonPanel.add(addRelativeButton); 
         buttonPanel.add(addWindowButton);
+        buttonPanel.add(modifyFurnitureButton);
         buttonPanel.add(zoomInButton);
 
         add(buttonPanel, BorderLayout.SOUTH);
@@ -717,6 +821,8 @@ add(leftPanel, BorderLayout.WEST);
                     addRoomButton.setVisible(false);
                     addFurnButton.setVisible(true);
                     addWindowButton.setVisible(false);
+                    modifyFurnitureButton.setVisible(true);  // Show modify furniture button
+
                     selectedRoom = null;
                 } else {
                     Room clickedRoom = null;
@@ -742,6 +848,7 @@ add(leftPanel, BorderLayout.WEST);
                         addRoomButton.setVisible(false);
                         addFurnButton.setVisible(true);
                         addWindowButton.setVisible(true);
+                        modifyFurnitureButton.setVisible(false);  // Hide modify furniture button
                     } else {
                         selectedRoom = null;
                         selectedFurniture = null;
@@ -754,6 +861,8 @@ add(leftPanel, BorderLayout.WEST);
                         addRoomButton.setVisible(true);
                         addFurnButton.setVisible(false);
                         addWindowButton.setVisible(false);
+                        modifyFurnitureButton.setVisible(false);  // Hide modify furniture button
+
                     }
                 }
                 repaint();
@@ -777,7 +886,7 @@ add(leftPanel, BorderLayout.WEST);
                 if (clickedRoom != null) {
                     selectedRoom = clickedRoom;
                     propertiesButton.setVisible(true);
-                    modifyButton.setVisible(true); // Show Modify button
+                    modifyButton.setVisible(true);
                     roomTypeButton.setVisible(false);
                     setDimensionsButton.setVisible(false);
                     setPositionButton.setVisible(false);
@@ -787,7 +896,7 @@ add(leftPanel, BorderLayout.WEST);
                 } else {
                     selectedRoom = null;
                     propertiesButton.setVisible(false);
-                    modifyButton.setVisible(false); // Hide Modify button
+                    modifyButton.setVisible(false);
                     roomTypeButton.setVisible(true);
                     setDimensionsButton.setVisible(true);
                     setPositionButton.setVisible(true);
@@ -821,47 +930,9 @@ add(leftPanel, BorderLayout.WEST);
         });
 
         addMouseMotionListener(new MouseMotionAdapter() {
-            @Override
             public void mouseDragged(MouseEvent e) {
-                if (selectedRoom != null && mouseOffset != null) {
-                    int newX = e.getX() - mouseOffset.x;
-                    int newY = e.getY() - mouseOffset.y;
-
-                    // Apply boundary constraints
-                    if (newX < LEFT_PANEL_WIDTH) {
-                        newX = LEFT_PANEL_WIDTH;
-                    }
-                    if (newY < 0) {
-                        newY = 0;
-                    }
-                    if (newX + selectedRoom.getWidth() > getWidth()) {
-                        newX = getWidth() - selectedRoom.getWidth();
-                    }
-                    if (newY + selectedRoom.getHeight() > getHeight() - BOTTOM_PANEL_HEIGHT) {
-                        newY = getHeight() - BOTTOM_PANEL_HEIGHT - selectedRoom.getHeight();
-                    }
-
-                    // Calculate the change in position with movement smoothing
-                    int deltaX = (newX - selectedRoom.getX()) / 2; // Smooth movement by moving halfway
-                    int deltaY = (newY - selectedRoom.getY()) / 2;
-
-                    // Update room position
-                    selectedRoom.setX(selectedRoom.getX() + deltaX);
-                    selectedRoom.setY(selectedRoom.getY() + deltaY);
-
-                    // Update furniture positions based on their relative positions
-                    for (Furniture furn : furnitureList) {
-                        if (furnitureRoomMap.get(furn) == selectedRoom) {
-                            Point relativePos = furnitureRelativePositions.get(furn);
-                            if (relativePos != null) {
-                                furn.setX(selectedRoom.getX() + relativePos.x);
-                                furn.setY(selectedRoom.getY() + relativePos.y);
-                            }
-                        }
-                    }
-                    repaint();
-                }
                 if (selectedFurniture != null) {
+                    // Move furniture
                     int newX = e.getX() - selectedFurniture.getWidth() / 2;
                     int newY = e.getY() - selectedFurniture.getHeight() / 2;
                     
@@ -882,6 +953,41 @@ add(leftPanel, BorderLayout.WEST);
                         updateFurnitureRoomMapping(selectedFurniture, containingRoom);
                         repaint();
                     }
+                } else if (selectedRoom != null && mouseOffset != null) {
+                    // Move room
+                    int newX = e.getX() - mouseOffset.x;
+                    int newY = e.getY() - mouseOffset.y;
+            
+                    if (newX < LEFT_PANEL_WIDTH) {
+                        newX = LEFT_PANEL_WIDTH;
+                    }
+                    if (newY < 0) {
+                        newY = 0;
+                    }
+                    if (newX + selectedRoom.getWidth() > getWidth()) {
+                        newX = getWidth() - selectedRoom.getWidth();
+                    }
+                    if (newY + selectedRoom.getHeight() > getHeight() - BOTTOM_PANEL_HEIGHT) {
+                        newY = getHeight() - BOTTOM_PANEL_HEIGHT - selectedRoom.getHeight();
+                    }
+            
+                    // Calculate the change in position
+                    int deltaX = newX - selectedRoom.getX();
+                    int deltaY = newY - selectedRoom.getY();
+            
+                    // Update room position
+                    selectedRoom.setX(newX);
+                    selectedRoom.setY(newY);
+            
+                    // Move all furniture that belongs to this room
+                    for (Map.Entry<Furniture, Room> entry : furnitureRoomMap.entrySet()) {
+                        if (entry.getValue() == selectedRoom) {
+                            Furniture furn = entry.getKey();
+                            furn.setX(furn.getX() + deltaX);
+                            furn.setY(furn.getY() + deltaY);
+                        }
+                    }
+                    repaint();
                 }
             }
         });
@@ -931,6 +1037,7 @@ add(leftPanel, BorderLayout.WEST);
         private Color color;
         private String type;
         private List<Window> windows = new ArrayList<>();
+        private List<Door> doors = new ArrayList<>();
 
         public Room(int x, int y, int width, int height, Color color, String type) {
             this.x = x;
@@ -943,6 +1050,70 @@ add(leftPanel, BorderLayout.WEST);
 
         public boolean contains(int mouseX, int mouseY) {
             return mouseX >= x && mouseX <= x + width && mouseY >= y && mouseY <= y + height;
+        }
+
+        public void addDoor(){
+            String[] options = {"North Wall", "South Wall", "East Wall", "West Wall"};
+            String wall = (String) JOptionPane.showInputDialog(
+                null,
+                "Select wall for door:",
+                "Add Door",
+                JOptionPane.QUESTION_MESSAGE,
+                null,
+                options,
+                options[0]
+            );
+
+            if (wall != null) {
+                char wallChar = wall.charAt(0);
+                
+                // Check if the wall is shared with another room
+
+                int position;
+                // Calculate middle position based on wall
+                switch (wall) {
+                    case "North Wall", "South Wall" -> {
+                        position = width / 2;
+                    }
+                    case "East Wall", "West Wall" -> {
+                        position = height / 2;
+                    }
+                    default -> {
+                        return;
+                    }
+                }
+
+                // Check for window overlap
+                for (Window window : windows) {
+                    if (window.wall == wallChar) {
+                        int winPos = window.getPosition();
+                        if (Math.abs(winPos - position) < Door.DOOR_LENGTH) {
+                            JOptionPane.showMessageDialog(null,
+                                "Door would overlap with a window.",
+                                "Invalid Door Position",
+                                JOptionPane.ERROR_MESSAGE);
+                            return;
+                        }
+                    }
+                }
+
+                // Check for door overlap
+                for (Door door : doors) {
+                    if (door.wall == wallChar) {
+                        int doorPos = door.getPosition();
+                        if (Math.abs(doorPos - position) < Door.DOOR_LENGTH) {
+                            JOptionPane.showMessageDialog(null,
+                                "Door would overlap with another door.",
+                                "Invalid Door Position",
+                                JOptionPane.ERROR_MESSAGE);
+                            return;
+                        }
+                    }
+                }
+
+                doors.add(new Door(position, wallChar));
+                repaint();
+            }
         }
 
         public void draw(Graphics g) {
@@ -1004,6 +1175,46 @@ add(leftPanel, BorderLayout.WEST);
             
             // Reset stroke for doors
             g2d.setStroke(new BasicStroke(borderWidth));
+            
+            // Draw doors
+            for (Door door : doors) {
+                int position = door.getPosition();
+                
+                // First fill with white
+                g2d.setColor(Color.WHITE);
+                switch (door.wall) {
+                    case 'N' -> {
+                        // Draw white background
+                        g2d.fillRect(x + position - Door.DOOR_LENGTH/2, y - borderWidth/2,
+                                    Door.DOOR_LENGTH, borderWidth);
+                        // Draw dashed black line
+                        g2d.setColor(Color.BLACK);
+                        g2d.drawLine(x + position - Door.DOOR_LENGTH/2, y,
+                           x + position + Door.DOOR_LENGTH/2, y);
+                    }
+                    case 'S' -> {
+                        g2d.fillRect(x + position - Door.DOOR_LENGTH/2, y + height - borderWidth/2,
+                                    Door.DOOR_LENGTH, borderWidth);
+                        g2d.setColor(Color.BLACK);
+                        g2d.drawLine(x + position - Door.DOOR_LENGTH/2, y + height,
+                           x + position + Door.DOOR_LENGTH/2, y + height);
+                    }
+                    case 'E' -> {
+                        g2d.fillRect(x + width - borderWidth/2, y + position - Door.DOOR_LENGTH/2,
+                                    borderWidth, Door.DOOR_LENGTH);
+                        g2d.setColor(Color.BLACK);
+                        g2d.drawLine(x + width, y + position - Door.DOOR_LENGTH/2,
+                           x + width, y + position + Door.DOOR_LENGTH/2);
+                    }
+                    case 'W' -> {
+                        g2d.fillRect(x - borderWidth/2, y + position - Door.DOOR_LENGTH/2,
+                                    borderWidth, Door.DOOR_LENGTH);
+                        g2d.setColor(Color.BLACK);
+                        g2d.drawLine(x, y + position - Door.DOOR_LENGTH/2,
+                           x, y + position + Door.DOOR_LENGTH/2);
+                    }
+                }
+            }
             
             // Draw doors
             for (Room other : rooms) {
@@ -1198,6 +1409,31 @@ add(leftPanel, BorderLayout.WEST);
             }
         }
 
+        public class Door {
+            private double proportion; // Position as proportion along the wall (0.0 to 1.0)
+            private char wall;    // 'N' for North, 'S' for South, 'E' for East, 'W' for West
+            private static final int DOOR_LENGTH = 40;
+            
+            public Door(int position, char wall) {
+                // Convert absolute position to proportion
+                this.wall = wall;
+                if (wall == 'N' || wall == 'S') {
+                    this.proportion = (double)position / Room.this.width;
+                } else {
+                    this.proportion = (double)position / Room.this.height;
+                }
+            }
+
+            public int getPosition() {
+                // Convert proportion back to absolute position
+                if (wall == 'N' || wall == 'S') {
+                    return (int)(proportion * Room.this.width);
+                } else {
+                    return (int)(proportion * Room.this.height);
+                }
+            }
+        }
+
         private boolean isWallShared(char wall) {
             for (Room other : rooms) {
                 if (other != this && isAdjacent(other)) {
@@ -1265,26 +1501,52 @@ add(leftPanel, BorderLayout.WEST);
 
         public void draw(Graphics g) {
             Graphics2D g2d = (Graphics2D) g;
-            g2d.setColor(Color.DARK_GRAY);
             
+            // Save the current transform
             AffineTransform oldTransform = g2d.getTransform();
             
-            g2d.rotate(Math.toRadians(rotation), 
-                       x + width / 2.0, 
-                       y + height / 2.0);
-            
-            switch(type) {
-                case "bed" -> g2d.setColor(new Color(139, 69, 19));
-                case "chair" -> g2d.setColor(new Color(165, 42, 42));
-                case "table" -> g2d.setColor(new Color(101, 67, 33));
-                case "sofa" -> g2d.setColor(new Color(112, 128, 144));
-                case "dining set" -> g2d.setColor(new Color(70, 130, 180));
+            // Draw the furniture image
+            BufferedImage img = furnitureImages.get(type.toLowerCase());
+            if (img != null) {
+                // Calculate dimensions that maintain aspect ratio
+                double imgAspectRatio = (double) img.getWidth() / img.getHeight();
+                double furnAspectRatio = (double) width / height;
+                
+                int drawX = x;
+                int drawY = y;
+                int drawWidth = width;
+                int drawHeight = height;
+                
+                if (imgAspectRatio > furnAspectRatio) {
+                    // Image is wider than furniture space, fit to width
+                    drawHeight = (int) (width / imgAspectRatio);
+                    drawY = y + (height - drawHeight) / 2;
+                } else {
+                    // Image is taller than furniture space, fit to height
+                    drawWidth = (int) (height * imgAspectRatio);
+                    drawX = x + (width - drawWidth) / 2;
+                }
+                
+                // Rotate around the center of the furniture space
+                g2d.rotate(Math.toRadians(rotation), 
+                          x + width / 2.0, 
+                          y + height / 2.0);
+                
+                g2d.drawImage(img, drawX, drawY, drawWidth, drawHeight, null);
+            } else {
+                // Fallback to colored rectangle if image is not found
+                g2d.rotate(Math.toRadians(rotation), 
+                          x + width / 2.0, 
+                          y + height / 2.0);
+                          
+                g2d.setColor(Color.LIGHT_GRAY);
+                g2d.fillRect(x, y, width, height);
+                g2d.setColor(Color.BLACK);
+                g2d.drawRect(x, y, width, height);
             }
             
-            g2d.fillRect(x, y, width, height);
+            // Reset transform
             g2d.setTransform(oldTransform);
-            g2d.setColor(Color.BLACK);
-            g2d.drawRect(x, y, width, height);
         }
 
         public boolean contains(int mouseX, int mouseY) {
